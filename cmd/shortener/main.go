@@ -5,6 +5,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strings"
 )
 
 var urlsId = make(map[string]string)
@@ -20,17 +21,27 @@ func generateShortKey() string {
 	return string(shortKey)
 }
 
+func invalidContentType(contentType string) bool {
+	if contentType == "" {
+		return true
+	}
+	out := true
+	for _, v := range strings.Split(contentType, ";") {
+		if v == "text/plain" {
+			out = false
+			break
+		}
+	}
+	return out
+}
+
 func shortUrl(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
 	}
 	contentType := req.Header.Get("Content-Type")
-	if contentType == "" {
-		http.Error(res, "Missing Header: Content-Type", http.StatusBadRequest)
-		return
-	}
-	if contentType != "text/plain" {
+	if invalidContentType(contentType) {
 		http.Error(res, "Header: Content-Type must be text/plain", http.StatusBadRequest)
 		return
 	}
