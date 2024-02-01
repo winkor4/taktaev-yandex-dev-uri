@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var urlsId = make(map[string]string)
+var urlsID = make(map[string]string)
 
 func generateShortKey() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -35,7 +35,7 @@ func invalidContentType(contentType string) bool {
 	return out
 }
 
-func shortUrl(res http.ResponseWriter, req *http.Request) {
+func shortURL(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
@@ -50,13 +50,13 @@ func shortUrl(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Cant read body", http.StatusBadRequest)
 		return
 	}
-	originalUrl := string(body)
-	if originalUrl == "" {
+	originalURL := string(body)
+	if originalURL == "" {
 		http.Error(res, "URL parameter is missing", http.StatusBadRequest)
 		return
 	}
 	shortKey := generateShortKey()
-	urlsId[shortKey] = originalUrl
+	urlsID[shortKey] = originalURL
 	shortenedURL := fmt.Sprintf("http://localhost:8080/%s", shortKey)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
@@ -64,27 +64,27 @@ func shortUrl(res http.ResponseWriter, req *http.Request) {
 	res.Write(data)
 }
 
-func getUrl(res http.ResponseWriter, req *http.Request) {
+func getURL(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
 	}
 	shortKey := req.RequestURI[1:]
-	originalUrl := urlsId[shortKey]
-	if originalUrl == "" {
+	originalURL := urlsID[shortKey]
+	if originalURL == "" {
 		http.Error(res, "Invalid url key", http.StatusBadRequest)
 		return
 	}
-	res.Header().Set("Location", originalUrl)
+	res.Header().Set("Location", originalURL)
 	res.WriteHeader(http.StatusTemporaryRedirect)
 
 }
 
 func rootHandle(res http.ResponseWriter, req *http.Request) {
 	if req.RequestURI == "/" {
-		shortUrl(res, req)
+		shortURL(res, req)
 	} else {
-		getUrl(res, req)
+		getURL(res, req)
 	}
 }
 
