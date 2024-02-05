@@ -74,6 +74,10 @@ func TestRootHandle(t *testing.T) {
 			res = w.Result()
 			assert.Equal(t, originalURL, res.Header.Get("Location"))
 			assert.Equal(t, tt.want.statusCodeGet, res.StatusCode)
+			//Закрываем тело
+			err = res.Body.Close()
+			//Проверяем, что смогли закрыть тело, иначе тест остановится
+			require.NoError(t, err)
 		})
 	}
 }
