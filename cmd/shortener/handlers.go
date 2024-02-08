@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func generateShortKey() string {
@@ -67,7 +69,8 @@ func getURL(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
 	}
-	shortKey := req.RequestURI[1:]
+	shortKey := chi.URLParam(req, "id")
+	// shortKey := req.RequestURI[1:]
 	originalURL := UrlsID[shortKey]
 	if originalURL == "" {
 		http.Error(res, "Invalid url key", http.StatusBadRequest)
@@ -78,13 +81,9 @@ func getURL(res http.ResponseWriter, req *http.Request) {
 
 }
 
-func RootHandle(res http.ResponseWriter, req *http.Request) {
-	if req.Host != "localhost:8080" {
-		return
-	}
-	if req.RequestURI == "/" {
-		shortURL(res, req)
-	} else {
-		getURL(res, req)
-	}
+func URLRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/", shortURL)
+	r.Get("/{id}", getURL)
+	return r
 }

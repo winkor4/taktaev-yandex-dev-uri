@@ -11,13 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRootHandle(t *testing.T) {
+func TestURLRouter(t *testing.T) {
+	ts := httptest.NewServer(URLRouter())
+	defer ts.Close()
+
 	type want struct {
 		contentType    string
 		statusCodePost int
 		statusCodeGet  int
 	}
-	tests := []struct {
+	testTable := []struct {
 		name string
 		url  string
 		want want
@@ -32,17 +35,18 @@ func TestRootHandle(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range tests {
+
+	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
 			body := strings.NewReader(tt.url)
-			request := httptest.NewRequest(http.MethodPost, "/", body)
+			request, err := http.NewRequest(http.MethodPost, ts.URL+"/", body)
+			require.NoError(t, err)
 			request.Header.Set("Content-Type", "text/plain")
 			request.Host = "localhost:8080"
-			w := httptest.NewRecorder()
-			h := http.HandlerFunc(RootHandle)
-			h(w, request)
 
-			res := w.Result()
+			res, err := ts.Client().Do(request)
+			require.NoError(t, err)
+
 			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
 			assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
 
@@ -50,9 +54,7 @@ func TestRootHandle(t *testing.T) {
 			url, err := io.ReadAll(res.Body)
 			//Проверяем, что смогли прочитать тело, иначе тест остановится
 			require.NoError(t, err)
-			//Закрываем тело
 			err = res.Body.Close()
-			//Проверяем, что смогли закрыть тело, иначе тест остановится
 			require.NoError(t, err)
 
 			shortURL := string(url)
@@ -64,20 +66,21 @@ func TestRootHandle(t *testing.T) {
 			originalURL := UrlsID[shortKey]
 			require.NotEmpty(t, originalURL)
 
-			request = httptest.NewRequest(http.MethodGet, "/"+shortKey, nil)
-			request.Header.Set("Content-Type", "text/plain")
+			request, err = http.NewRequest(http.MethodGet, ts.URL+"/"+shortKey, nil)
+			require.NoError(t, err)
 			request.Host = "localhost:8080"
-			w = httptest.NewRecorder()
-			h = http.HandlerFunc(RootHandle)
-			h(w, request)
 
-			res = w.Result()
+			client := ts.Client()
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+			res, err = client.Do(request)
+			require.NoError(t, err)
 			assert.Equal(t, originalURL, res.Header.Get("Location"))
 			assert.Equal(t, tt.want.statusCodeGet, res.StatusCode)
-			//Закрываем тело
 			err = res.Body.Close()
-			//Проверяем, что смогли закрыть тело, иначе тест остановится
 			require.NoError(t, err)
 		})
 	}
+
 }
