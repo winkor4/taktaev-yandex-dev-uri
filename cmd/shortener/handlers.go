@@ -57,7 +57,7 @@ func shortURL(res http.ResponseWriter, req *http.Request) {
 	}
 	shortKey := generateShortKey()
 	UrlsID[shortKey] = originalURL
-	shortenedURL := fmt.Sprintf("http://localhost:8080/%s", shortKey)
+	shortenedURL := fmt.Sprintf(flagResultAddr+"/%s", shortKey)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 	data := []byte(shortenedURL)

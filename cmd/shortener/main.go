@@ -7,7 +7,9 @@ import (
 var UrlsID = make(map[string]string)
 
 func main() {
-	err := http.ListenAndServe(`:8080`, URLRouter())
+	parseFlags()
+
+	err := http.ListenAndServe(flagRunAddr, URLRouter())
 	if err != nil {
 		panic(err)
 	}
