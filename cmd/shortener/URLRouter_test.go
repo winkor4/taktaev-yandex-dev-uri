@@ -36,8 +36,7 @@ func TestURLRouter(t *testing.T) {
 		},
 	}
 
-	flagRunAddr = "localhost:8080"
-	flagResultAddr = "http://localhost:8080"
+	parseFlags()
 
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
