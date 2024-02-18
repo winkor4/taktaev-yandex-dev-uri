@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"fmt"
@@ -8,7 +8,21 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
 )
+
+type HandlerData struct {
+	SM  *storage.StorageMap
+	Cfg *config.Config
+}
+
+func (hd *HandlerData) URLRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/", hd.shortURL)
+	r.Get("/{id}", hd.getURL)
+	return r
+}
 
 func generateShortKey() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -35,7 +49,7 @@ func invalidContentType(contentType string) bool {
 	return out
 }
 
-func shortURL(res http.ResponseWriter, req *http.Request) {
+func (hd *HandlerData) shortURL(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
@@ -56,22 +70,23 @@ func shortURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	shortKey := generateShortKey()
-	UrlsID[shortKey] = originalURL
-	shortenedURL := fmt.Sprintf(flagResultAddr+"/%s", shortKey)
+
+	hd.SM.PostURL(shortKey, originalURL)
+	shortenedURL := fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 	data := []byte(shortenedURL)
 	res.Write(data)
 }
 
-func getURL(res http.ResponseWriter, req *http.Request) {
+func (hd *HandlerData) getURL(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
 	}
 	shortKey := chi.URLParam(req, "id")
 	// shortKey := req.RequestURI[1:]
-	originalURL := UrlsID[shortKey]
+	originalURL := hd.SM.GetURL(shortKey)
 	if originalURL == "" {
 		http.Error(res, "Invalid url key", http.StatusBadRequest)
 		return
@@ -79,11 +94,4 @@ func getURL(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Location", originalURL)
 	res.WriteHeader(http.StatusTemporaryRedirect)
 
-}
-
-func URLRouter() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/", shortURL)
-	r.Get("/{id}", getURL)
-	return r
 }

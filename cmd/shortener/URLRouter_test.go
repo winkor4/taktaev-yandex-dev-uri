@@ -9,10 +9,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
 )
 
 func TestURLRouter(t *testing.T) {
-	ts := httptest.NewServer(URLRouter())
+	cfg := config.Parse()
+	sm := storage.NewStorageMap()
+	hd := handlers.HandlerData{
+		SM:  sm,
+		Cfg: cfg,
+	}
+
+	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
 	type want struct {
@@ -35,8 +45,6 @@ func TestURLRouter(t *testing.T) {
 			},
 		},
 	}
-
-	parseFlags()
 
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
@@ -65,7 +73,7 @@ func TestURLRouter(t *testing.T) {
 			shortKey := strings.ReplaceAll(shortURL, "http://localhost:8080/", "")
 			require.NotEmpty(t, shortKey)
 
-			originalURL := UrlsID[shortKey]
+			originalURL := hd.SM.GetURL(shortKey)
 			require.NotEmpty(t, originalURL)
 
 			request, err = http.NewRequest(http.MethodGet, ts.URL+"/"+shortKey, nil)

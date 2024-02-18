@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"flag"
@@ -7,7 +7,7 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
-type osParam struct {
+type Config struct {
 	SrvAdr  string `env:"SERVER_ADDRESS"`
 	BaseURL string `env:"BASE_URL"`
 }
@@ -17,20 +17,22 @@ var (
 	flagResultAddr string
 )
 
-func parseFlags() {
+func Parse() *Config {
 	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
 	flag.Parse()
 
-	var cfg osParam
+	var cfg Config
 	err := env.Parse(&cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if cfg.SrvAdr != "" {
-		flagRunAddr = cfg.SrvAdr
+	if cfg.SrvAdr == "" {
+		cfg.SrvAdr = flagRunAddr
 	}
-	if cfg.BaseURL != "" {
-		flagResultAddr = cfg.BaseURL
+	if cfg.SrvAdr == "" {
+		cfg.BaseURL = flagResultAddr
 	}
+
+	return &cfg
 }
