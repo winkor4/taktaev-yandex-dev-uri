@@ -30,7 +30,7 @@ func Parse() *Config {
 	if cfg.SrvAdr == "" {
 		cfg.SrvAdr = flagRunAddr
 	}
-	if cfg.SrvAdr == "" {
+	if cfg.BaseURL == "" {
 		cfg.BaseURL = flagResultAddr
 	}
 
