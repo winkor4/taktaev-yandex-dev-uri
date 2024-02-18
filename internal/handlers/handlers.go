@@ -91,7 +91,5 @@ func (hd *HandlerData) getURL(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Invalid url key", http.StatusBadRequest)
 		return
 	}
-	res.Header().Set("Location", originalURL)
-	res.WriteHeader(http.StatusTemporaryRedirect)
-
+	http.Redirect(res, req, originalURL, http.StatusTemporaryRedirect)
 }
