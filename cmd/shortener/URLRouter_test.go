@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
 )
 
@@ -18,9 +19,12 @@ func TestURLRouter(t *testing.T) {
 	cfg, err := config.Parse()
 	require.NoError(t, err)
 	sm := storage.NewStorageMap()
+	l, err := logger.NewLogZap()
+	require.NoError(t, err)
 	hd := handlers.HandlerData{
 		SM:  sm,
 		Cfg: cfg,
+		L:   l,
 	}
 
 	ts := httptest.NewServer(hd.URLRouter())
