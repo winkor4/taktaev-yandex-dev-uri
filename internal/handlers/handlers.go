@@ -6,22 +6,77 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
+	"go.uber.org/zap"
 )
 
-type HandlerData struct {
-	SM  *storage.StorageMap
-	Cfg *config.Config
-}
+type (
+	HandlerData struct {
+		SM  *storage.StorageMap
+		Cfg *config.Config
+		L   *zap.SugaredLogger
+	}
+	responseData struct {
+		status int
+		size   int
+	}
+	loggingResponseWriter struct {
+		http.ResponseWriter
+		responseData *responseData
+	}
+)
 
 func (hd *HandlerData) URLRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", hd.shortURL)
-	r.Get("/{id}", hd.getURL)
+	r.Post("/", hd.WithLogging(hd.shortURL))
+	r.Get("/{id}", hd.WithLogging(hd.getURL))
 	return r
+}
+
+func (r *loggingResponseWriter) Write(b []byte) (int, error) {
+	// записываем ответ, используя оригинальный http.ResponseWriter
+	size, err := r.ResponseWriter.Write(b)
+	r.responseData.size += size // захватываем размер
+	return size, err
+}
+
+func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+	// записываем код статуса, используя оригинальный http.ResponseWriter
+	r.ResponseWriter.WriteHeader(statusCode)
+	r.responseData.status = statusCode // захватываем код статуса
+}
+
+// WithLogging добавляет дополнительный код для регистрации сведений о запросе
+// и возвращает новый http.Handler.
+func (hd *HandlerData) WithLogging(h http.HandlerFunc) http.HandlerFunc {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		responseData := &responseData{
+			status: 0,
+			size:   0,
+		}
+		lw := loggingResponseWriter{
+			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
+			responseData:   responseData,
+		}
+		h(&lw, r) // внедряем реализацию http.ResponseWriter
+
+		duration := time.Since(start)
+
+		hd.L.Infoln(
+			"uri", r.RequestURI,
+			"method", r.Method,
+			"status", responseData.status, // получаем перехваченный код статуса ответа
+			"duration", duration,
+			"size", responseData.size, // получаем перехваченный размер ответа
+		)
+	}
+	return http.HandlerFunc(logFn)
 }
 
 func generateShortKey() string {

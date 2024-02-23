@@ -5,21 +5,25 @@ import (
 	"log"
 
 	"github.com/caarlos0/env/v6"
+	"go.uber.org/zap/zapcore"
 )
 
 type Config struct {
-	SrvAdr  string `env:"SERVER_ADDRESS"`
-	BaseURL string `env:"BASE_URL"`
+	SrvAdr   string `env:"SERVER_ADDRESS"`
+	BaseURL  string `env:"BASE_URL"`
+	LogLevel zapcore.Level
 }
 
 var (
 	flagRunAddr    string
 	flagResultAddr string
+	flagLogLevel   string
 )
 
-func Parse() *Config {
+func Parse() (*Config, error) {
 	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
+	flag.StringVar(&flagLogLevel, "l", "info", "log level")
 	flag.Parse()
 
 	var cfg Config
@@ -34,5 +38,10 @@ func Parse() *Config {
 		cfg.BaseURL = flagResultAddr
 	}
 
-	return &cfg
+	cfg.LogLevel, err = zapcore.ParseLevel(flagLogLevel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cfg, err
 }

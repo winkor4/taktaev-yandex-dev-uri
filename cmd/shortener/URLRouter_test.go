@@ -15,7 +15,8 @@ import (
 )
 
 func TestURLRouter(t *testing.T) {
-	cfg := config.Parse()
+	cfg, err := config.Parse()
+	require.NoError(t, err)
 	sm := storage.NewStorageMap()
 	hd := handlers.HandlerData{
 		SM:  sm,
