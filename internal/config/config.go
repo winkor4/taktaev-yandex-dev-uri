@@ -3,7 +3,6 @@ package config
 import (
 	"flag"
 	"log"
-	"os"
 
 	"github.com/caarlos0/env/v6"
 	"go.uber.org/zap/zapcore"
@@ -21,14 +20,16 @@ var (
 	flagLogLevel   string
 )
 
-func ClearCommandLine() {
-	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+func stringVar(p *string, name string, value string, usage string) {
+	if flag.Lookup(name) == nil {
+		flag.StringVar(p, name, value, usage)
+	}
 }
 
 func Parse() (*Config, error) {
-	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.StringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
-	flag.StringVar(&flagLogLevel, "l", "info", "log level")
+	stringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
+	stringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
+	stringVar(&flagLogLevel, "l", "info", "log level")
 	flag.Parse()
 
 	var cfg Config

@@ -147,7 +147,6 @@ func TestApiShorten(t *testing.T) {
 }
 
 func hd(t *testing.T) handlers.HandlerData {
-	config.ClearCommandLine()
 	cfg, err := config.Parse()
 	require.NoError(t, err)
 	sm := storage.NewStorageMap()
