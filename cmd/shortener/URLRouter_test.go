@@ -139,6 +139,8 @@ func TestApiShorten(t *testing.T) {
 			err = json.NewDecoder(res.Body).Decode(&sres)
 			require.NoError(t, err)
 
+			err = res.Body.Close()
+			require.NoError(t, err)
 		})
 	}
 

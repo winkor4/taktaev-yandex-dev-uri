@@ -109,7 +109,7 @@ func isNotTextPalin(contentType string) bool {
 	return out
 }
 
-func isNotApplicationJson(contentType string) bool {
+func isNotApplicationJSON(contentType string) bool {
 	if contentType == "" {
 		return true
 	}
@@ -174,7 +174,7 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	contentType := req.Header.Get("Content-Type")
-	if isNotApplicationJson(contentType) {
+	if isNotApplicationJSON(contentType) {
 		http.Error(res, "Header: Content-Type must be application/json", http.StatusBadRequest)
 		return
 	}
