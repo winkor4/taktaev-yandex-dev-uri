@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
 	"go.uber.org/zap"
 )
@@ -34,6 +36,9 @@ func (hd *HandlerData) URLRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", hd.WithLogging(hd.shortURL))
 	r.Get("/{id}", hd.WithLogging(hd.getURL))
+	r.Route("/api", func(r chi.Router) {
+		r.Post("/shorten", hd.WithLogging(hd.shortURLJS))
+	})
 	return r
 }
 
@@ -90,7 +95,7 @@ func generateShortKey() string {
 	return string(shortKey)
 }
 
-func invalidContentType(contentType string) bool {
+func isNotTextPalin(contentType string) bool {
 	if contentType == "" {
 		return true
 	}
@@ -104,13 +109,27 @@ func invalidContentType(contentType string) bool {
 	return out
 }
 
+func isNotApplicationJson(contentType string) bool {
+	if contentType == "" {
+		return true
+	}
+	out := true
+	for _, v := range strings.Split(contentType, ";") {
+		if v == "application/json" {
+			out = false
+			break
+		}
+	}
+	return out
+}
+
 func (hd *HandlerData) shortURL(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
 	}
 	contentType := req.Header.Get("Content-Type")
-	if invalidContentType(contentType) {
+	if isNotTextPalin(contentType) {
 		http.Error(res, "Header: Content-Type must be text/plain", http.StatusBadRequest)
 		return
 	}
@@ -147,4 +166,41 @@ func (hd *HandlerData) getURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	http.Redirect(res, req, originalURL, http.StatusTemporaryRedirect)
+}
+
+func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(res, "Invalid request method", http.StatusBadRequest)
+		return
+	}
+	contentType := req.Header.Get("Content-Type")
+	if isNotApplicationJson(contentType) {
+		http.Error(res, "Header: Content-Type must be application/json", http.StatusBadRequest)
+		return
+	}
+
+	var sreq models.ShortenRequest
+	if err := json.NewDecoder(req.Body).Decode(&sreq); err != nil {
+		http.Error(res, "Cant read body", http.StatusBadRequest)
+		return
+	}
+
+	originalURL := sreq.URL
+	if originalURL == "" {
+		http.Error(res, "URL parameter is missing", http.StatusBadRequest)
+		return
+	}
+
+	shortKey := generateShortKey()
+	hd.SM.PostURL(shortKey, originalURL)
+
+	var sres models.ShortenResponse
+	sres.Result = fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(res).Encode(sres); err != nil {
+		http.Error(res, "error encoding response", http.StatusInternalServerError)
+		return
+	}
 }

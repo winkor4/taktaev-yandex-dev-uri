@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,21 +14,12 @@ import (
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
 )
 
 func TestURLRouter(t *testing.T) {
-	cfg, err := config.Parse()
-	require.NoError(t, err)
-	sm := storage.NewStorageMap()
-	l, err := logger.NewLogZap()
-	require.NoError(t, err)
-	hd := handlers.HandlerData{
-		SM:  sm,
-		Cfg: cfg,
-		L:   l,
-	}
-
+	hd := hd(t)
 	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
@@ -98,4 +91,70 @@ func TestURLRouter(t *testing.T) {
 		})
 	}
 
+}
+
+func TestApiShorten(t *testing.T) {
+	hd := hd(t)
+	ts := httptest.NewServer(hd.URLRouter())
+	defer ts.Close()
+
+	type want struct {
+		contentType    string
+		statusCodePost int
+	}
+	testTable := []struct {
+		name string
+		json models.ShortenRequest
+		want want
+	}{
+		{
+			name: "shorten with js request",
+			json: models.ShortenRequest{
+				URL: "https://reqbin.com/post-online",
+			},
+			want: want{
+				contentType:    "application/json",
+				statusCodePost: http.StatusCreated,
+			},
+		},
+	}
+
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+			js, err := json.Marshal(tt.json)
+			require.NoError(t, err)
+			body := bytes.NewReader(js)
+			request, err := http.NewRequest(http.MethodPost, ts.URL+"/api/shorten", body)
+			require.NoError(t, err)
+			request.Header.Set("Content-Type", "application/json")
+			request.Host = "localhost:8080"
+
+			res, err := ts.Client().Do(request)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
+			assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
+
+			var sres models.ShortenResponse
+			err = json.NewDecoder(res.Body).Decode(&sres)
+			require.NoError(t, err)
+
+		})
+	}
+
+}
+
+func hd(t *testing.T) handlers.HandlerData {
+	config.ClearCommandLine()
+	cfg, err := config.Parse()
+	require.NoError(t, err)
+	sm := storage.NewStorageMap()
+	l, err := logger.NewLogZap()
+	require.NoError(t, err)
+	hd := handlers.HandlerData{
+		SM:  sm,
+		Cfg: cfg,
+		L:   l,
+	}
+	return hd
 }

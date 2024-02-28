@@ -20,6 +20,10 @@ var (
 	flagLogLevel   string
 )
 
+func ClearCommandLine() {
+	flag.CommandLine = flag.NewFlagSet("", flag.ExitOnError)
+}
+
 func Parse() (*Config, error) {
 	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
