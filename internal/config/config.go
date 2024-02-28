@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"log"
+	"os"
 
 	"github.com/caarlos0/env/v6"
 	"go.uber.org/zap/zapcore"
@@ -21,7 +22,7 @@ var (
 )
 
 func ClearCommandLine() {
-	flag.CommandLine = flag.NewFlagSet("", flag.ExitOnError)
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 }
 
 func Parse() (*Config, error) {
