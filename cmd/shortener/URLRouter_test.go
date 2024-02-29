@@ -140,8 +140,6 @@ func TestApiShorten(t *testing.T) {
 			err = json.NewDecoder(res.Body).Decode(&sres)
 			require.NoError(t, err)
 
-			err = res.Body.Close()
-			require.NoError(t, err)
 		})
 	}
 
@@ -197,7 +195,6 @@ func TestGzip(t *testing.T) {
 
 				// gr, err := gzip.NewReader(bytes.NewReader(data))
 				// require.NoError(t, err)
-
 				// body, err := io.ReadAll(gr)
 				// require.NoError(t, err)
 				// str := string(body)
@@ -206,7 +203,7 @@ func TestGzip(t *testing.T) {
 				body := bytes.NewReader(data)
 				request, err := http.NewRequest(http.MethodPost, ts.URL+"/", body)
 				require.NoError(t, err)
-				request.Header.Set("Content-Type", "text/plain")
+				request.Header.Set("Content-Type", "application/x-gzip")
 				request.Header.Set("Content-Encoding", "gzip")
 				request.Host = "localhost:8080"
 
@@ -215,6 +212,16 @@ func TestGzip(t *testing.T) {
 
 				assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
 				assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
+
+				//Читаем тело ответа
+				url, err := io.ReadAll(res.Body)
+				//Проверяем, что смогли прочитать тело, иначе тест остановится
+				require.NoError(t, err)
+				err = res.Body.Close()
+				require.NoError(t, err)
+
+				shortURL := string(url)
+				require.NotEmpty(t, shortURL)
 			}
 		})
 	}

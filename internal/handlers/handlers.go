@@ -133,27 +133,13 @@ func generateShortKey() string {
 	return string(shortKey)
 }
 
-func isNotTextPalin(contentType string) bool {
+func badContentType(contentType string, expType string) bool {
 	if contentType == "" {
 		return true
 	}
 	out := true
 	for _, v := range strings.Split(contentType, ";") {
-		if v == "text/plain" {
-			out = false
-			break
-		}
-	}
-	return out
-}
-
-func isNotApplicationJSON(contentType string) bool {
-	if contentType == "" {
-		return true
-	}
-	out := true
-	for _, v := range strings.Split(contentType, ";") {
-		if v == "application/json" {
+		if v == expType || v == "application/x-gzip" {
 			out = false
 			break
 		}
@@ -167,7 +153,7 @@ func (hd *HandlerData) shortURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	contentType := req.Header.Get("Content-Type")
-	if isNotTextPalin(contentType) {
+	if badContentType(contentType, "text/plain") {
 		http.Error(res, "Header: Content-Type must be text/plain", http.StatusBadRequest)
 		return
 	}
@@ -216,7 +202,7 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	contentType := req.Header.Get("Content-Type")
-	if isNotApplicationJSON(contentType) {
+	if badContentType(contentType, "application/json") {
 		http.Error(res, "Header: Content-Type must be application/json", http.StatusBadRequest)
 		return
 	}
