@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -141,6 +142,80 @@ func TestApiShorten(t *testing.T) {
 
 			err = res.Body.Close()
 			require.NoError(t, err)
+		})
+	}
+
+}
+
+func TestGzip(t *testing.T) {
+	hd := hd(t)
+	ts := httptest.NewServer(hd.URLRouter())
+	defer ts.Close()
+
+	type want struct {
+		contentType    string
+		statusCodePost int
+		statusCodeGet  int
+	}
+	testTable := []struct {
+		name string
+		url  string
+		want want
+		json models.ShortenRequest
+	}{
+		{
+			name: "gzip post and get url",
+			url:  "https://reqbin.com/post-online",
+			want: want{
+				contentType:    "text/plain",
+				statusCodePost: http.StatusCreated,
+				statusCodeGet:  http.StatusTemporaryRedirect,
+			},
+		},
+		{
+			name: "gzip shorten with js request",
+			json: models.ShortenRequest{
+				URL: "https://reqbin.com/post-online",
+			},
+			want: want{
+				contentType:    "application/json",
+				statusCodePost: http.StatusCreated,
+			},
+		},
+	}
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+			if strings.Contains(tt.name, "gzip post and get") {
+				var buf bytes.Buffer
+				gw := gzip.NewWriter(&buf)
+				_, err := gw.Write([]byte(tt.url))
+				require.NoError(t, err)
+				err = gw.Close()
+				require.NoError(t, err)
+
+				data := buf.Bytes()
+
+				// gr, err := gzip.NewReader(bytes.NewReader(data))
+				// require.NoError(t, err)
+
+				// body, err := io.ReadAll(gr)
+				// require.NoError(t, err)
+				// str := string(body)
+				// assert.Equal(t, tt.url, str)
+
+				body := bytes.NewReader(data)
+				request, err := http.NewRequest(http.MethodPost, ts.URL+"/", body)
+				require.NoError(t, err)
+				request.Header.Set("Content-Type", "text/plain")
+				request.Header.Set("Content-Encoding", "gzip")
+				request.Host = "localhost:8080"
+
+				res, err := ts.Client().Do(request)
+				require.NoError(t, err)
+
+				assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
+				assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
+			}
 		})
 	}
 

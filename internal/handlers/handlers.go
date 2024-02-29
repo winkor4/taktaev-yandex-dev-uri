@@ -188,7 +188,11 @@ func (hd *HandlerData) shortURL(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 	data := []byte(shortenedURL)
-	res.Write(data)
+	_, err = res.Write(data)
+	if err != nil {
+		http.Error(res, "Cant write response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (hd *HandlerData) getURL(res http.ResponseWriter, req *http.Request) {
