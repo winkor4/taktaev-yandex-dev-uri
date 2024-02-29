@@ -133,6 +133,9 @@ func TestApiShorten(t *testing.T) {
 			res, err := ts.Client().Do(request)
 			require.NoError(t, err)
 
+			err = res.Body.Close()
+			require.NoError(t, err)
+
 			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
 			assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
 
