@@ -7,9 +7,9 @@ import (
 )
 
 type StorageJSStruct struct {
-	Uuid         int
-	Short_url    string
-	Original_url string
+	UUID        int    `json:"uuid"`
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
 
 type StorageJS struct {
@@ -47,6 +47,10 @@ func NewStorageMap(fname string) (*StorageMap, error) {
 	return &sm, err
 }
 
+func (s *StorageMap) CloseStorageFile() error {
+	return s.sjs.file.Close()
+}
+
 func (s *StorageMap) GetURL(key string) string {
 	return s.m[key]
 }
@@ -59,9 +63,9 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 	s.m[key] = ourl
 	uuid := len(s.sjs.table) + 1
 	js := StorageJSStruct{
-		Uuid:         uuid,
-		Short_url:    key,
-		Original_url: ourl,
+		UUID:        uuid,
+		ShortURL:    key,
+		OriginalURL: ourl,
 	}
 	s.sjs.table = append(s.sjs.table, js)
 	return s.sjs.encoder.Encode(&js)
@@ -82,7 +86,7 @@ func readStorageFile(sm StorageMap, fname string) error {
 			return err
 		}
 		sm.sjs.table = append(sm.sjs.table, js)
-		sm.m[js.Short_url] = js.Original_url
+		sm.m[js.ShortURL] = js.OriginalURL
 	}
 	return nil
 }
