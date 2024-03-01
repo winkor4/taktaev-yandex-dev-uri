@@ -14,7 +14,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	sm := storage.NewStorageMap()
+	sm, err := storage.NewStorageMap(cfg.FileStoragePath)
+	if err != nil {
+		panic(err)
+	}
 	l, err := logger.NewLogZap()
 	if err != nil {
 		panic(err)

@@ -9,15 +9,17 @@ import (
 )
 
 type Config struct {
-	SrvAdr   string `env:"SERVER_ADDRESS"`
-	BaseURL  string `env:"BASE_URL"`
-	LogLevel zapcore.Level
+	SrvAdr          string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	LogLevel        zapcore.Level
 }
 
 var (
-	flagRunAddr    string
-	flagResultAddr string
-	flagLogLevel   string
+	flagRunAddr         string
+	flagResultAddr      string
+	flagLogLevel        string
+	flagFileStoragePath string
 )
 
 func stringVar(p *string, name string, value string, usage string) {
@@ -30,6 +32,7 @@ func Parse() (*Config, error) {
 	stringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	stringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
 	stringVar(&flagLogLevel, "l", "info", "log level")
+	stringVar(&flagFileStoragePath, "f", "tmp/short-url-db.json", "file storage path")
 	flag.Parse()
 
 	var cfg Config
@@ -43,7 +46,9 @@ func Parse() (*Config, error) {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = flagResultAddr
 	}
-
+	if cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = flagFileStoragePath
+	}
 	cfg.LogLevel, err = zapcore.ParseLevel(flagLogLevel)
 	if err != nil {
 		return nil, err

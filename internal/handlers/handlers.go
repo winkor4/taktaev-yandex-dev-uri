@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -122,15 +123,18 @@ func (hd *HandlerData) WithLogging(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(logFn)
 }
 
-func generateShortKey() string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	const keyLength = 8
+func generateShortKey(originalURL string) string {
+	// const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	// const keyLength = 8
 
-	shortKey := make([]byte, keyLength)
-	for i := range shortKey {
-		shortKey[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(shortKey)
+	// shortKey := make([]byte, keyLength)
+	// for i := range shortKey {
+	// 	shortKey[i] = charset[rand.Intn(len(charset))]
+	// }
+	// return string(shortKey)
+
+	hash := md5.Sum([]byte(originalURL))
+	return hex.EncodeToString(hash[:])
 }
 
 func badContentType(contentType string, expType string) bool {
@@ -167,9 +171,13 @@ func (hd *HandlerData) shortURL(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "URL parameter is missing", http.StatusBadRequest)
 		return
 	}
-	shortKey := generateShortKey()
+	shortKey := generateShortKey(originalURL)
 
-	hd.SM.PostURL(shortKey, originalURL)
+	err = hd.SM.PostURL(shortKey, originalURL)
+	if err != nil {
+		http.Error(res, "Cant write data in file", http.StatusInternalServerError)
+		return
+	}
 	shortenedURL := fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
@@ -219,8 +227,12 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortKey := generateShortKey()
-	hd.SM.PostURL(shortKey, originalURL)
+	shortKey := generateShortKey(originalURL)
+	err := hd.SM.PostURL(shortKey, originalURL)
+	if err != nil {
+		http.Error(res, "Cant write data in file", http.StatusInternalServerError)
+		return
+	}
 
 	var sres models.ShortenResponse
 	sres.Result = fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)

@@ -234,7 +234,8 @@ func TestGzip(t *testing.T) {
 func hd(t *testing.T) handlers.HandlerData {
 	cfg, err := config.Parse()
 	require.NoError(t, err)
-	sm := storage.NewStorageMap()
+	sm, err := storage.NewStorageMap(cfg.FileStoragePath)
+	require.NoError(t, err)
 	l, err := logger.NewLogZap()
 	require.NoError(t, err)
 	hd := handlers.HandlerData{
