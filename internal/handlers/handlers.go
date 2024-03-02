@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -123,17 +124,17 @@ func (hd *HandlerData) WithLogging(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func generateShortKey(originalURL string) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	const keyLength = 8
+	// const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	// const keyLength = 8
 
-	shortKey := make([]byte, keyLength)
-	for i := range shortKey {
-		shortKey[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(shortKey)
+	// shortKey := make([]byte, keyLength)
+	// for i := range shortKey {
+	// 	shortKey[i] = charset[rand.Intn(len(charset))]
+	// }
+	// return string(shortKey)
 
-	// hash := md5.Sum([]byte(originalURL))
-	// return hex.EncodeToString(hash[:])
+	hash := md5.Sum([]byte(originalURL))
+	return hex.EncodeToString(hash[:])
 }
 
 func badContentType(contentType string, expType string) bool {
