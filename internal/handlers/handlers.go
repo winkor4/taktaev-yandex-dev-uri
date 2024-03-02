@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/compression"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
@@ -62,32 +63,32 @@ func (hd *HandlerData) gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		// который будем передавать следующей функции
 		gzipW := w
 
-		// // проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
-		// acceptEncoding := r.Header.Get("Accept-Encoding")
-		// supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		// if supportsGzip {
-		// 	// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
-		// 	cw := compression.NewCompressWriter(w)
-		// 	// меняем оригинальный http.ResponseWriter на новый
-		// 	gzipW = cw
-		// 	// не забываем отправить клиенту все сжатые данные после завершения middleware
-		// 	defer cw.Close()
-		// }
+		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+		if supportsGzip {
+			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
+			cw := compression.NewCompressWriter(w)
+			// меняем оригинальный http.ResponseWriter на новый
+			gzipW = cw
+			// не забываем отправить клиенту все сжатые данные после завершения middleware
+			defer cw.Close()
+		}
 
-		// // проверяем, что клиент отправил серверу сжатые данные в формате gzip
-		// contentEncoding := r.Header.Get("Content-Encoding")
-		// sendsGzip := strings.Contains(contentEncoding, "gzip")
-		// if sendsGzip {
-		// 	// оборачиваем тело запроса в io.Reader с поддержкой декомпрессии
-		// 	gzipR, err := compression.NewCompressReader(r.Body)
-		// 	if err != nil {
-		// 		w.WriteHeader(http.StatusInternalServerError)
-		// 		return
-		// 	}
-		// 	// меняем тело запроса на новое
-		// 	r.Body = gzipR
-		// 	defer gzipR.Close()
-		// }
+		// проверяем, что клиент отправил серверу сжатые данные в формате gzip
+		contentEncoding := r.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		if sendsGzip {
+			// оборачиваем тело запроса в io.Reader с поддержкой декомпрессии
+			gzipR, err := compression.NewCompressReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			// меняем тело запроса на новое
+			r.Body = gzipR
+			defer gzipR.Close()
+		}
 
 		h(gzipW, r)
 	}
