@@ -72,15 +72,17 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 	}
 	s.sjs.table = append(s.sjs.table, js)
 
-	return nil
+	if s.sjs.fname == "" {
+		return nil
+	}
 
-	// file, err := os.OpenFile(s.sjs.fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	// if err != nil {
-	// 	return err
-	// }
-	// defer file.Close()
+	file, err := os.OpenFile(s.sjs.fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-	// return json.NewEncoder(file).Encode(&js)
+	return json.NewEncoder(file).Encode(&js)
 }
 
 func readStorageFile(sm StorageMap, fname string) error {
