@@ -43,6 +43,15 @@ func TestURLRouter(t *testing.T) {
 				statusCodeGet:  http.StatusTemporaryRedirect,
 			},
 		},
+		{
+			name: "post and get url",
+			url:  "https://github.com/winkor4/taktaev-yandex-dev-uri/actions/runs/8112982490/job/22175347832?pr=11",
+			want: want{
+				contentType:    "text/plain",
+				statusCodePost: http.StatusCreated,
+				statusCodeGet:  http.StatusTemporaryRedirect,
+			},
+		},
 	}
 
 	for _, tt := range testTable {

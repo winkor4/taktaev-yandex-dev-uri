@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,10 +15,9 @@ type StorageJSStruct struct {
 }
 
 type StorageJS struct {
-	table []StorageJSStruct
-	fname string
-	// encoder *json.Encoder
-	// file    *os.File
+	table   []StorageJSStruct
+	encoder *json.Encoder
+	file    *os.File
 }
 
 type StorageMap struct {
@@ -26,16 +26,19 @@ type StorageMap struct {
 }
 
 func NewStorageMap(fname string) (*StorageMap, error) {
-	// file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err := os.MkdirAll(filepath.Dir(fname), 0666)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
 
 	sjs := StorageJS{
-		table: make([]StorageJSStruct, 0),
-		fname: fname,
-		// encoder: json.NewEncoder(file),
-		// file:    file,
+		table:   make([]StorageJSStruct, 0),
+		encoder: json.NewEncoder(file),
+		file:    file,
 	}
 
 	sm := StorageMap{
@@ -50,9 +53,9 @@ func NewStorageMap(fname string) (*StorageMap, error) {
 	return &sm, nil
 }
 
-// func (s *StorageMap) CloseStorageFile() error {
-// 	return s.sjs.file.Close()
-// }
+func (s *StorageMap) CloseStorageFile() error {
+	return s.sjs.file.Close()
+}
 
 func (s *StorageMap) GetURL(key string) string {
 	return s.m[key]
@@ -71,18 +74,7 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 		OriginalURL: ourl,
 	}
 	s.sjs.table = append(s.sjs.table, js)
-
-	if s.sjs.fname == "" {
-		return nil
-	}
-
-	file, err := os.OpenFile(s.sjs.fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	return json.NewEncoder(file).Encode(&js)
+	return json.NewEncoder(s.sjs.file).Encode(&js)
 }
 
 func readStorageFile(sm StorageMap, fname string) error {

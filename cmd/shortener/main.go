@@ -28,7 +28,7 @@ func main() {
 		L:   l,
 	}
 
-	// defer hd.SM.CloseStorageFile()
+	defer hd.SM.CloseStorageFile()
 
 	l.Logw(cfg.LogLevel, "Starting server", "SrvAdr", cfg.SrvAdr)
 
