@@ -3,7 +3,6 @@ package storage
 import (
 	"encoding/json"
 	"os"
-	"strings"
 )
 
 type StorageJSStruct struct {
@@ -42,9 +41,9 @@ func NewStorageMap(fname string) (*StorageMap, error) {
 		sjs: sjs,
 	}
 
-	if err := readStorageFile(sm, fname); err != nil {
-		return nil, err
-	}
+	// if err := readStorageFile(sm, fname); err != nil {
+	// 	return nil, err
+	// }
 
 	return &sm, nil
 }
@@ -80,22 +79,22 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 	return json.NewEncoder(file).Encode(&js)
 }
 
-func readStorageFile(sm StorageMap, fname string) error {
-	var js StorageJSStruct
-	strData, err := os.ReadFile(fname)
-	if err != nil {
-		return err
-	}
-	sliceData := strings.Split(string(strData), "\n")
-	for _, data := range sliceData {
-		if data == "" {
-			continue
-		}
-		if err := json.Unmarshal([]byte(data), &js); err != nil {
-			return err
-		}
-		sm.sjs.table = append(sm.sjs.table, js)
-		sm.m[js.ShortURL] = js.OriginalURL
-	}
-	return nil
-}
+// func readStorageFile(sm StorageMap, fname string) error {
+// 	var js StorageJSStruct
+// 	strData, err := os.ReadFile(fname)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	sliceData := strings.Split(string(strData), "\n")
+// 	for _, data := range sliceData {
+// 		if data == "" {
+// 			continue
+// 		}
+// 		if err := json.Unmarshal([]byte(data), &js); err != nil {
+// 			return err
+// 		}
+// 		sm.sjs.table = append(sm.sjs.table, js)
+// 		sm.m[js.ShortURL] = js.OriginalURL
+// 	}
+// 	return nil
+// }
