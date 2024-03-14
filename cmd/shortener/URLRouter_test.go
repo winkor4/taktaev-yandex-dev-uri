@@ -3,13 +3,16 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
@@ -20,7 +23,7 @@ import (
 )
 
 func TestURLRouter(t *testing.T) {
-	hd := hd(t)
+	hd := hd(t, nil)
 	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
@@ -104,7 +107,7 @@ func TestURLRouter(t *testing.T) {
 }
 
 func TestApiShorten(t *testing.T) {
-	hd := hd(t)
+	hd := hd(t, nil)
 	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
@@ -158,7 +161,7 @@ func TestApiShorten(t *testing.T) {
 }
 
 func TestGzip(t *testing.T) {
-	hd := hd(t)
+	hd := hd(t, nil)
 	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
@@ -237,20 +240,83 @@ func TestGzip(t *testing.T) {
 			}
 		})
 	}
-
 }
 
-func hd(t *testing.T) handlers.HandlerData {
-	cfg, err := config.Parse()
+func TestPingDB(t *testing.T) {
+	type want struct {
+		statusCodePost int
+	}
+	testTable := []struct {
+		name    string
+		logPath string
+		want    want
+	}{
+		{
+			name:    "Путь из конфигурации",
+			logPath: "",
+			want: want{
+				statusCodePost: http.StatusOK,
+			},
+		},
+		{
+			name: "Путь с ошибкой",
+			logPath: fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+				`localhost`, `postgres`, `12345`, `shorten_dev`),
+			want: want{
+				statusCodePost: http.StatusInternalServerError,
+			},
+		},
+	}
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+
+			testCfg, _ := cfg(nil)
+			if tt.logPath > "" {
+				testCfg.DatabaseDSN = tt.logPath
+			}
+
+			hd := hd(t, testCfg)
+			ts := httptest.NewServer(hd.URLRouter())
+
+			request, err := http.NewRequest(http.MethodGet, ts.URL+"/ping", nil)
+			require.NoError(t, err)
+			request.Host = "localhost:8080"
+
+			res, err := ts.Client().Do(request)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
+
+			ts.Close()
+		})
+	}
+}
+
+func hd(t *testing.T, testCfg *config.Config) handlers.HandlerData {
+	cfg, err := cfg(testCfg)
 	require.NoError(t, err)
 	sm, err := storage.NewStorageMap(cfg.FileStoragePath)
 	require.NoError(t, err)
 	l, err := logger.NewLogZap()
 	require.NoError(t, err)
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
+	if err != nil {
+		panic(err)
+	}
 	hd := handlers.HandlerData{
 		SM:  sm,
 		Cfg: cfg,
 		L:   l,
+		DB:  db,
 	}
 	return hd
+}
+
+func cfg(testCfg *config.Config) (*config.Config, error) {
+	switch testCfg {
+	case nil:
+		return config.Parse()
+	default:
+		return testCfg, nil
+	}
 }

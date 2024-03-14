@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"crypto/md5"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -23,6 +25,7 @@ type (
 		SM  *storage.StorageMap
 		Cfg *config.Config
 		L   *zap.SugaredLogger
+		DB  *sql.DB
 	}
 	responseData struct {
 		status int
@@ -38,6 +41,7 @@ func (hd *HandlerData) URLRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", hd.gzipMiddleware(hd.WithLogging(hd.shortURL)))
 	r.Get("/{id}", hd.gzipMiddleware(hd.WithLogging(hd.getURL)))
+	r.Get("/ping", hd.gzipMiddleware(hd.WithLogging(hd.pingDB)))
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/shorten", hd.gzipMiddleware(hd.WithLogging(hd.shortURLJS)))
 	})
@@ -124,15 +128,6 @@ func (hd *HandlerData) WithLogging(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func generateShortKey(originalURL string) string {
-	// const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	// const keyLength = 8
-
-	// shortKey := make([]byte, keyLength)
-	// for i := range shortKey {
-	// 	shortKey[i] = charset[rand.Intn(len(charset))]
-	// }
-	// return string(shortKey)
-
 	hash := md5.Sum([]byte(originalURL))
 	return hex.EncodeToString(hash[:])
 }
@@ -243,4 +238,18 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (hd *HandlerData) pingDB(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Invalid request method", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := hd.DB.PingContext(ctx); err != nil {
+		http.Error(res, "connection could't be established", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
 }
