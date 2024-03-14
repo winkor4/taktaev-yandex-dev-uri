@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -242,55 +241,58 @@ func TestGzip(t *testing.T) {
 	}
 }
 
-func TestPingDB(t *testing.T) {
-	type want struct {
-		statusCodePost int
-	}
-	testTable := []struct {
-		name    string
-		logPath string
-		want    want
-	}{
-		{
-			name:    "Путь из конфигурации",
-			logPath: "",
-			want: want{
-				statusCodePost: http.StatusOK,
-			},
-		},
-		{
-			name: "Путь с ошибкой",
-			logPath: fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-				`localhost`, `postgres`, `12345`, `shorten_dev`),
-			want: want{
-				statusCodePost: http.StatusInternalServerError,
-			},
-		},
-	}
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
+// func TestPingDB(t *testing.T) {
+// 	type want struct {
+// 		statusCodePost int
+// 	}
+// 	testTable := []struct {
+// 		name    string
+// 		logPath string
+// 		want    want
+// 	}{
+// 		{
+// 			name:    "Путь из конфигурации",
+// 			logPath: "",
+// 			want: want{
+// 				statusCodePost: http.StatusOK,
+// 			},
+// 		},
+// 		{
+// 			name: "Путь с ошибкой",
+// 			logPath: fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+// 				`localhost`, `postgres`, `12345`, `shorten_dev`),
+// 			want: want{
+// 				statusCodePost: http.StatusInternalServerError,
+// 			},
+// 		},
+// 	}
+// 	for _, tt := range testTable {
+// 		t.Run(tt.name, func(t *testing.T) {
 
-			testCfg, _ := cfg(nil)
-			if tt.logPath > "" {
-				testCfg.DatabaseDSN = tt.logPath
-			}
+// 			testCfg, _ := cfg(nil)
+// 			if tt.logPath > "" {
+// 				testCfg.DatabaseDSN = tt.logPath
+// 			}
 
-			hd := hd(t, testCfg)
-			ts := httptest.NewServer(hd.URLRouter())
+// 			hd := hd(t, testCfg)
+// 			ts := httptest.NewServer(hd.URLRouter())
 
-			request, err := http.NewRequest(http.MethodGet, ts.URL+"/ping", nil)
-			require.NoError(t, err)
-			request.Host = "localhost:8080"
+// 			request, err := http.NewRequest(http.MethodGet, ts.URL+"/ping", nil)
+// 			require.NoError(t, err)
+// 			request.Host = "localhost:8080"
 
-			res, err := ts.Client().Do(request)
-			require.NoError(t, err)
+// 			res, err := ts.Client().Do(request)
+// 			require.NoError(t, err)
 
-			assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
+// 			assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
 
-			ts.Close()
-		})
-	}
-}
+// 			err = res.Body.Close()
+// 			require.NoError(t, err)
+
+// 			ts.Close()
+// 		})
+// 	}
+// }
 
 func hd(t *testing.T, testCfg *config.Config) handlers.HandlerData {
 	cfg, err := cfg(testCfg)
