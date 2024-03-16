@@ -24,7 +24,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	db, err := databaseSQL.CheckConn(cfg.DatabaseDSN)
+	db, err := databasesql.CheckConn(cfg.DatabaseDSN)
 	if err != nil {
 		panic(err)
 	}

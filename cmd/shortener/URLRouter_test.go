@@ -302,7 +302,7 @@ func hd(t *testing.T, testCfg *config.Config) handlers.HandlerData {
 	require.NoError(t, err)
 	l, err := logger.NewLogZap()
 	require.NoError(t, err)
-	db, err := databaseSQL.CheckConn(cfg.DatabaseDSN)
+	db, err := databasesql.CheckConn(cfg.DatabaseDSN)
 	require.NoError(t, err)
 	sm.DB = db
 	hd := handlers.HandlerData{
