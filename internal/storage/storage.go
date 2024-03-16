@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databaseSQL"
 )
 
 type StorageJSStruct struct {
@@ -23,6 +25,7 @@ type StorageJS struct {
 type StorageMap struct {
 	m   map[string]string
 	sjs StorageJS
+	DB  databaseSQL.PSQLDB
 }
 
 func NewStorageMap(fname string) (*StorageMap, error) {
@@ -57,14 +60,25 @@ func (s *StorageMap) CloseStorageFile() error {
 	return s.sjs.file.Close()
 }
 
-func (s *StorageMap) GetURL(key string) string {
-	return s.m[key]
+func (s *StorageMap) GetURL(key string) (string, error) {
+	if s.DB.NotAvailable() {
+		return s.m[key], nil
+	}
+	ourl, err := s.DB.SelectURL(key)
+	if err != nil {
+		return "", err
+	}
+	return ourl, nil
 }
 
 func (s *StorageMap) PostURL(key string, ourl string) error {
 	_, ok := s.m[key]
 	if ok {
 		return nil
+	}
+	err := s.DB.Insert(key, ourl)
+	if err != nil {
+		return err
 	}
 	s.m[key] = ourl
 	uuid := len(s.sjs.table) + 1

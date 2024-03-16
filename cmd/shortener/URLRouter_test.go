@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databaseSQL"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
@@ -83,7 +83,8 @@ func TestURLRouter(t *testing.T) {
 			shortKey := strings.ReplaceAll(shortURL, "http://localhost:8080/", "")
 			require.NotEmpty(t, shortKey)
 
-			originalURL := hd.SM.GetURL(shortKey)
+			originalURL, err := hd.SM.GetURL(shortKey)
+			require.NoError(t, err)
 			require.NotEmpty(t, originalURL)
 
 			request, err = http.NewRequest(http.MethodGet, ts.URL+"/"+shortKey, nil)
@@ -301,15 +302,13 @@ func hd(t *testing.T, testCfg *config.Config) handlers.HandlerData {
 	require.NoError(t, err)
 	l, err := logger.NewLogZap()
 	require.NoError(t, err)
-	db, err := sql.Open("pgx", cfg.DatabaseDSN)
-	if err != nil {
-		panic(err)
-	}
+	db, err := databaseSQL.CheckConn(cfg.DatabaseDSN)
+	require.NoError(t, err)
+	sm.DB = db
 	hd := handlers.HandlerData{
 		SM:  sm,
 		Cfg: cfg,
 		L:   l,
-		DB:  db,
 	}
 	return hd
 }

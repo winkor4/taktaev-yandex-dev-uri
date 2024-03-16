@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"crypto/md5"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -25,7 +24,6 @@ type (
 		SM  *storage.StorageMap
 		Cfg *config.Config
 		L   *zap.SugaredLogger
-		DB  *sql.DB
 	}
 	responseData struct {
 		status int
@@ -191,7 +189,11 @@ func (hd *HandlerData) getURL(res http.ResponseWriter, req *http.Request) {
 	}
 	shortKey := chi.URLParam(req, "id")
 	// shortKey := req.RequestURI[1:]
-	originalURL := hd.SM.GetURL(shortKey)
+	originalURL, err := hd.SM.GetURL(shortKey)
+	if err != nil {
+		http.Error(res, "Error with sql query", http.StatusInternalServerError)
+		return
+	}
 	if originalURL == "" {
 		http.Error(res, "Invalid url key", http.StatusBadRequest)
 		return
@@ -245,9 +247,13 @@ func (hd *HandlerData) pingDB(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Invalid request method", http.StatusBadRequest)
 		return
 	}
+	if hd.SM.DB.NotAvailable() {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	if err := hd.DB.PingContext(ctx); err != nil {
+	if err := hd.SM.DB.PingContext(ctx); err != nil {
 		http.Error(res, "connection could't be established", http.StatusInternalServerError)
 		return
 	}
