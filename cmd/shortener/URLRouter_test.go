@@ -14,7 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databasesql"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/dbsql"
+
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
@@ -302,7 +303,7 @@ func hd(t *testing.T, testCfg *config.Config) handlers.HandlerData {
 	require.NoError(t, err)
 	l, err := logger.NewLogZap()
 	require.NoError(t, err)
-	db, err := databasesql.CheckConn(cfg.DatabaseDSN)
+	db, err := dbsql.CheckConn(cfg.DatabaseDSN)
 	require.NoError(t, err)
 	sm.DB = db
 	hd := handlers.HandlerData{

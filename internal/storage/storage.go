@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databasesql"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/dbsql"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
 )
 
@@ -32,7 +32,7 @@ type URLData struct {
 type StorageMap struct {
 	m   map[string]URLData
 	sjs StorageJS
-	DB  databasesql.PSQLDB
+	DB  dbsql.PSQLDB
 }
 
 func NewStorageMap(fname string) (*StorageMap, error) {

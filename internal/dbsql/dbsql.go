@@ -1,4 +1,4 @@
-package databasesql
+package dbsql
 
 import (
 	"context"

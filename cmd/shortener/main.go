@@ -5,7 +5,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databasesql"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/dbsql"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
@@ -24,7 +24,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	db, err := databasesql.CheckConn(cfg.DatabaseDSN)
+
+	db, err := dbsql.CheckConn(cfg.DatabaseDSN)
 	if err != nil {
 		panic(err)
 	}
