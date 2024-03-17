@@ -5,21 +5,34 @@ import (
 	"log"
 
 	"github.com/caarlos0/env/v6"
+	"go.uber.org/zap/zapcore"
 )
 
 type Config struct {
-	SrvAdr  string `env:"SERVER_ADDRESS"`
-	BaseURL string `env:"BASE_URL"`
+	SrvAdr          string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	LogLevel        zapcore.Level
 }
 
 var (
-	flagRunAddr    string
-	flagResultAddr string
+	flagRunAddr         string
+	flagResultAddr      string
+	flagLogLevel        string
+	flagFileStoragePath string
 )
 
-func Parse() *Config {
-	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.StringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
+func stringVar(p *string, name string, value string, usage string) {
+	if flag.Lookup(name) == nil {
+		flag.StringVar(p, name, value, usage)
+	}
+}
+
+func Parse() (*Config, error) {
+	stringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
+	stringVar(&flagResultAddr, "b", "http://localhost:8080", "address and port to run server")
+	stringVar(&flagLogLevel, "l", "info", "log level")
+	stringVar(&flagFileStoragePath, "f", "tmp/short-url-db.json", "file storage path")
 	flag.Parse()
 
 	var cfg Config
@@ -33,6 +46,13 @@ func Parse() *Config {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = flagResultAddr
 	}
+	if cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = flagFileStoragePath
+	}
+	cfg.LogLevel, err = zapcore.ParseLevel(flagLogLevel)
+	if err != nil {
+		return nil, err
+	}
 
-	return &cfg
+	return &cfg, err
 }
