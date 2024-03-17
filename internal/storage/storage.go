@@ -7,13 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	databasesql "github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databaseSQL"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databasesql"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
 )
 
 type StorageJSStruct struct {
-	UUID        int    `json:"uuid"`
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
+	UUID          int    `json:"uuid"`
+	ShortURL      string `json:"short_url"`
+	OriginalURL   string `json:"original_url"`
+	CorrelationID string `json:"correlation_id"`
 }
 
 type StorageJS struct {
@@ -22,8 +24,13 @@ type StorageJS struct {
 	file    *os.File
 }
 
+type URLData struct {
+	CorrelationID string
+	OriginalURL   string
+}
+
 type StorageMap struct {
-	m   map[string]string
+	m   map[string]URLData
 	sjs StorageJS
 	DB  databasesql.PSQLDB
 }
@@ -45,7 +52,7 @@ func NewStorageMap(fname string) (*StorageMap, error) {
 	}
 
 	sm := StorageMap{
-		m:   make(map[string]string),
+		m:   make(map[string]URLData),
 		sjs: sjs,
 	}
 
@@ -62,7 +69,7 @@ func (s *StorageMap) CloseStorageFile() error {
 
 func (s *StorageMap) GetURL(key string) (string, error) {
 	if s.DB.NotAvailable() {
-		return s.m[key], nil
+		return s.m[key].OriginalURL, nil
 	}
 	ourl, err := s.DB.SelectURL(key)
 	if err != nil {
@@ -80,7 +87,9 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 	if err != nil {
 		return err
 	}
-	s.m[key] = ourl
+	s.m[key] = URLData{
+		OriginalURL: ourl,
+	}
 	uuid := len(s.sjs.table) + 1
 	js := StorageJSStruct{
 		UUID:        uuid,
@@ -89,6 +98,40 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 	}
 	s.sjs.table = append(s.sjs.table, js)
 	return json.NewEncoder(s.sjs.file).Encode(&js)
+}
+
+func (s *StorageMap) PostBatch(obj []models.ShortenBatchRequest) error {
+	dataToWrite := make([]models.ShortenBatchRequest, 0)
+	for _, data := range obj {
+		_, ok := s.m[data.ShortURL]
+		if ok {
+			continue
+		}
+		dataToWrite = append(dataToWrite, data)
+		s.m[data.ShortURL] = URLData{
+			OriginalURL:   data.OriginalURL,
+			CorrelationID: data.CorrelationID,
+		}
+		uuid := len(s.sjs.table) + 1
+		js := StorageJSStruct{
+			UUID:          uuid,
+			ShortURL:      data.ShortURL,
+			OriginalURL:   data.OriginalURL,
+			CorrelationID: data.CorrelationID,
+		}
+		s.sjs.table = append(s.sjs.table, js)
+		if err := json.NewEncoder(s.sjs.file).Encode(&js); err != nil {
+			return err
+		}
+	}
+	if len(dataToWrite) == 0 {
+		return nil
+	}
+	err := s.DB.InsertBatch(dataToWrite)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func readStorageFile(sm StorageMap, fname string) error {
@@ -109,7 +152,10 @@ func readStorageFile(sm StorageMap, fname string) error {
 			return err
 		}
 		sm.sjs.table = append(sm.sjs.table, js)
-		sm.m[js.ShortURL] = js.OriginalURL
+		sm.m[js.ShortURL] = URLData{
+			OriginalURL:   js.OriginalURL,
+			CorrelationID: js.CorrelationID,
+		}
 	}
 	return nil
 }

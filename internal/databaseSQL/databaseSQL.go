@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
 )
 
 type PSQLDB struct {
@@ -55,7 +57,7 @@ func CheckConn(databaseDSN string) (PSQLDB, error) {
 }
 
 func createTable(ctx context.Context, db *sql.DB, tableName string) error {
-	queryText := fmt.Sprintf("CREATE TABLE %s (ORIGINAL_URL text, SHORT_URL text);", tableName)
+	queryText := fmt.Sprintf("CREATE TABLE %s (original_url text, short_url text, correlation_id text);", tableName)
 	_, err := db.ExecContext(ctx, queryText)
 	if err != nil {
 		return err
@@ -68,14 +70,49 @@ func (db PSQLDB) Insert(shortURL string, originalURL string) error {
 		return nil
 	}
 	queryText :=
-		`INSERT INTO shorten_urls (original_url, short_url)
-		VALUES ($1, $2)`
-	_, err := db.db.ExecContext(context.Background(), queryText, originalURL, shortURL)
+		`INSERT INTO shorten_urls (original_url, short_url, correlation_id)
+		VALUES ($1, $2, $3)`
+	_, err := db.db.ExecContext(context.Background(), queryText, originalURL, shortURL, "")
 	if err != nil {
 		return err
 	}
 	return nil
 }
+
+func (db PSQLDB) InsertBatch(dataToWrite []models.ShortenBatchRequest) error {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	queryText :=
+		`INSERT INTO shorten_urls (original_url, short_url, correlation_id)
+		VALUES ($1, $2, $3)`
+	for _, data := range dataToWrite {
+		_, err := tx.ExecContext(context.Background(), queryText,
+			data.OriginalURL,
+			data.ShortURL,
+			data.CorrelationID)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// queryText :=
+// 		`INSERT INTO shorten_urls (original_url, short_url, correlation_id)
+// 		VALUES (@original_url, @short_url, @correlation_id);`
+// 	for _, data := range dataToWrite {
+// 		_, err := tx.ExecContext(context.Background(), queryText,
+// 			sql.Named("original_url", data.OriginalURL),
+// 			sql.Named("short_url", data.ShortURL),
+// 			sql.Named("correlation_id", data.CorrelationID))
+// 		if err != nil {
+// 			tx.Rollback()
+// 			return err
+// 		}
+// 	}
 
 func (db PSQLDB) SelectURL(shortURL string) (string, error) {
 	queryText :=

@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databaseSQL"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databasesql"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"

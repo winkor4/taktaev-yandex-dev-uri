@@ -5,7 +5,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databaseSQL"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/databasesql"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"

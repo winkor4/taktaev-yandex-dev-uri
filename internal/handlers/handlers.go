@@ -41,7 +41,10 @@ func (hd *HandlerData) URLRouter() chi.Router {
 	r.Get("/{id}", hd.gzipMiddleware(hd.WithLogging(hd.getURL)))
 	r.Get("/ping", hd.gzipMiddleware(hd.WithLogging(hd.pingDB)))
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/shorten", hd.gzipMiddleware(hd.WithLogging(hd.shortURLJS)))
+		r.Route("/shorten", func(r chi.Router) {
+			r.Post("/", hd.gzipMiddleware(hd.WithLogging(hd.shortURLJS)))
+			r.Post("/batch", hd.gzipMiddleware(hd.WithLogging(hd.shortBatch)))
+		})
 	})
 	return r
 }
@@ -258,4 +261,49 @@ func (hd *HandlerData) pingDB(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res.WriteHeader(http.StatusOK)
+}
+
+func (hd *HandlerData) shortBatch(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(res, "Invalid request method", http.StatusBadRequest)
+		return
+	}
+	contentType := req.Header.Get("Content-Type")
+	if badContentType(contentType, "application/json") {
+		http.Error(res, "Header: Content-Type must be application/json", http.StatusBadRequest)
+		return
+	}
+
+	obj := make([]models.ShortenBatchRequest, 0)
+	data, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "Cant read body", http.StatusBadRequest)
+		return
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		http.Error(res, "Cant read json data", http.StatusBadRequest)
+		return
+	}
+	resData := make([]models.ShortenBatchResponse, 0, len(obj))
+	for i, data := range obj {
+		if data.OriginalURL == "" {
+			http.Error(res, "URL parameter is missing", http.StatusBadRequest)
+			return
+		}
+		obj[i].ShortURL = generateShortKey(data.OriginalURL)
+		resData = append(resData, models.ShortenBatchResponse{
+			CorrelationID: data.CorrelationID,
+			ShortURL:      obj[i].ShortURL,
+		})
+	}
+	if err = hd.SM.PostBatch(obj); err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(res).Encode(resData); err != nil {
+		http.Error(res, "error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
