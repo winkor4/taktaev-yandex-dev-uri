@@ -113,6 +113,7 @@ func (db PSQLDB) InsertBatch(dataToWrite []models.ShortenBatchRequest) error {
 // 			return err
 // 		}
 // 	}
+//
 
 func (db PSQLDB) SelectURL(shortURL string) (string, error) {
 	queryText :=
