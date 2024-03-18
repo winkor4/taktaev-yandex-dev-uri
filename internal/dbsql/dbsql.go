@@ -80,6 +80,10 @@ func (db PSQLDB) Insert(shortURL string, originalURL string) error {
 }
 
 func (db PSQLDB) InsertBatch(dataToWrite []models.ShortenBatchRequest) error {
+	if db.NotAvailable() {
+		return nil
+	}
+
 	tx, err := db.db.Begin()
 	if err != nil {
 		return err
