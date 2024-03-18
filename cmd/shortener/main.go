@@ -3,7 +3,9 @@ package main
 import (
 	"net/http"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/dbsql"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage"
@@ -22,6 +24,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	db, err := dbsql.CheckConn(cfg.DatabaseDSN)
+	if err != nil {
+		panic(err)
+	}
+	sm.DB = db
 	hd := handlers.HandlerData{
 		SM:  sm,
 		Cfg: cfg,
@@ -29,6 +37,7 @@ func main() {
 	}
 
 	defer hd.SM.CloseStorageFile()
+	defer db.Close()
 
 	l.Logw(cfg.LogLevel, "Starting server", "SrvAdr", cfg.SrvAdr)
 
