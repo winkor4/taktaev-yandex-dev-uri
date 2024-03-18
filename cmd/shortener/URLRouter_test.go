@@ -293,7 +293,7 @@ func TestPostBatch(t *testing.T) {
 			err = res.Body.Close()
 			require.NoError(t, err)
 
-			shortKey := resJS[0].ShortURL
+			shortKey := strings.ReplaceAll(resJS[0].ShortURL, "http://localhost:8080/", "")
 			ourl := tt.data[0].OriginalURL
 
 			request, err = http.NewRequest(http.MethodGet, ts.URL+"/"+shortKey, nil)

@@ -57,7 +57,7 @@ func CheckConn(databaseDSN string) (PSQLDB, error) {
 }
 
 func createTable(ctx context.Context, db *sql.DB, tableName string) error {
-	queryText := fmt.Sprintf("CREATE TABLE %s (original_url text, short_url text, correlation_id text);", tableName)
+	queryText := fmt.Sprintf("CREATE TABLE %s (original_url text, short_key text, correlation_id text);", tableName)
 	_, err := db.ExecContext(ctx, queryText)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (db PSQLDB) Insert(shortURL string, originalURL string) error {
 		return nil
 	}
 	queryText :=
-		`INSERT INTO shorten_urls (original_url, short_url, correlation_id)
+		`INSERT INTO shorten_urls (original_url, short_key, correlation_id)
 		VALUES ($1, $2, $3)`
 	_, err := db.db.ExecContext(context.Background(), queryText, originalURL, shortURL, "")
 	if err != nil {
@@ -89,12 +89,12 @@ func (db PSQLDB) InsertBatch(dataToWrite []models.ShortenBatchRequest) error {
 		return err
 	}
 	queryText :=
-		`INSERT INTO shorten_urls (original_url, short_url, correlation_id)
+		`INSERT INTO shorten_urls (original_url, short_key, correlation_id)
 		VALUES ($1, $2, $3)`
 	for _, data := range dataToWrite {
 		_, err := tx.ExecContext(context.Background(), queryText,
 			data.OriginalURL,
-			data.ShortURL,
+			data.ShortKey,
 			data.CorrelationID)
 		if err != nil {
 			tx.Rollback()
@@ -123,7 +123,7 @@ func (db PSQLDB) SelectURL(shortURL string) (string, error) {
 	queryText :=
 		`SELECT original_url
 		FROM shorten_urls
-		WHERE short_url = $1`
+		WHERE short_key = $1`
 	row := db.db.QueryRowContext(context.Background(), queryText, shortURL)
 	ourl := new(string)
 	err := row.Scan(ourl)

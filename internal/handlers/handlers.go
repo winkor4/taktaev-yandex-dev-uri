@@ -289,10 +289,10 @@ func (hd *HandlerData) shortBatch(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, "URL parameter is missing", http.StatusBadRequest)
 			return
 		}
-		obj[i].ShortURL = generateShortKey(data.OriginalURL)
+		obj[i].ShortKey = generateShortKey(data.OriginalURL)
 		resData = append(resData, models.ShortenBatchResponse{
 			CorrelationID: data.CorrelationID,
-			ShortURL:      obj[i].ShortURL,
+			ShortURL:      fmt.Sprintf(hd.Cfg.BaseURL+"/%s", obj[i].ShortKey),
 		})
 	}
 	if err = hd.SM.PostBatch(obj); err != nil {

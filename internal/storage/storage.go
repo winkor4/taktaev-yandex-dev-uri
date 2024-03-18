@@ -13,7 +13,7 @@ import (
 
 type StorageJSStruct struct {
 	UUID          int    `json:"uuid"`
-	ShortURL      string `json:"short_url"`
+	ShortKey      string `json:"short_key"`
 	OriginalURL   string `json:"original_url"`
 	CorrelationID string `json:"correlation_id"`
 }
@@ -93,7 +93,7 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 	uuid := len(s.sjs.table) + 1
 	js := StorageJSStruct{
 		UUID:        uuid,
-		ShortURL:    key,
+		ShortKey:    key,
 		OriginalURL: ourl,
 	}
 	s.sjs.table = append(s.sjs.table, js)
@@ -103,19 +103,19 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 func (s *StorageMap) PostBatch(obj []models.ShortenBatchRequest) error {
 	dataToWrite := make([]models.ShortenBatchRequest, 0)
 	for _, data := range obj {
-		_, ok := s.m[data.ShortURL]
+		_, ok := s.m[data.ShortKey]
 		if ok {
 			continue
 		}
 		dataToWrite = append(dataToWrite, data)
-		s.m[data.ShortURL] = URLData{
+		s.m[data.ShortKey] = URLData{
 			OriginalURL:   data.OriginalURL,
 			CorrelationID: data.CorrelationID,
 		}
 		uuid := len(s.sjs.table) + 1
 		js := StorageJSStruct{
 			UUID:          uuid,
-			ShortURL:      data.ShortURL,
+			ShortKey:      data.ShortKey,
 			OriginalURL:   data.OriginalURL,
 			CorrelationID: data.CorrelationID,
 		}
@@ -152,7 +152,7 @@ func readStorageFile(sm StorageMap, fname string) error {
 			return err
 		}
 		sm.sjs.table = append(sm.sjs.table, js)
-		sm.m[js.ShortURL] = URLData{
+		sm.m[js.ShortKey] = URLData{
 			OriginalURL:   js.OriginalURL,
 			CorrelationID: js.CorrelationID,
 		}
