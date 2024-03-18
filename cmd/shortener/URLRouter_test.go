@@ -243,6 +243,78 @@ func TestGzip(t *testing.T) {
 	}
 }
 
+func TestPostBatch(t *testing.T) {
+	hd := hd(t, nil)
+	ts := httptest.NewServer(hd.URLRouter())
+	defer ts.Close()
+
+	type reqJS struct {
+		CorrelationID string `json:"correlation_id"`
+		OriginalURL   string `json:"original_url"`
+	}
+	testTable := []struct {
+		name string
+		data []reqJS
+	}{
+		{
+			name: "testing PostBatch",
+			data: []reqJS{
+				{
+					CorrelationID: "1",
+					OriginalURL:   "https://www.youtube.com",
+				},
+				{
+					CorrelationID: "2",
+					OriginalURL:   "https://www.youtube.com/watch?v=09839DpTctU&list=RD09839DpTctU&start_radio=1",
+				},
+			},
+		},
+	}
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+			js, err := json.Marshal(tt.data)
+			require.NoError(t, err)
+			body := bytes.NewReader(js)
+			request, err := http.NewRequest(http.MethodPost, ts.URL+"/api/shorten/batch", body)
+			require.NoError(t, err)
+			request.Header.Set("Content-Type", "application/json")
+			request.Host = "localhost:8080"
+
+			res, err := ts.Client().Do(request)
+			require.NoError(t, err)
+
+			resData, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+
+			resJS := make([]models.ShortenBatchResponse, 0)
+			err = json.Unmarshal(resData, &resJS)
+			require.NoError(t, err)
+
+			err = res.Body.Close()
+			require.NoError(t, err)
+
+			shortKey := resJS[0].ShortURL
+			ourl := tt.data[0].OriginalURL
+
+			request, err = http.NewRequest(http.MethodGet, ts.URL+"/"+shortKey, nil)
+			require.NoError(t, err)
+			request.Host = "localhost:8080"
+
+			client := ts.Client()
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+			res, err = ts.Client().Do(request)
+			require.NoError(t, err)
+
+			assert.Equal(t, ourl, res.Header.Get("Location"))
+			err = res.Body.Close()
+			require.NoError(t, err)
+
+		})
+	}
+}
+
 // func TestPingDB(t *testing.T) {
 // 	type want struct {
 // 		statusCodePost int

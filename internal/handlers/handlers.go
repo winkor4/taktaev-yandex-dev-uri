@@ -191,7 +191,6 @@ func (hd *HandlerData) getURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	shortKey := chi.URLParam(req, "id")
-	// shortKey := req.RequestURI[1:]
 	originalURL, err := hd.SM.GetURL(shortKey)
 	if err != nil {
 		http.Error(res, "Error with sql query", http.StatusInternalServerError)
