@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -38,8 +39,12 @@ func (hd *HandlerData) URLRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", hd.gzipMiddleware(hd.WithLogging(hd.shortURL)))
 	r.Get("/{id}", hd.gzipMiddleware(hd.WithLogging(hd.getURL)))
+	r.Get("/ping", hd.gzipMiddleware(hd.WithLogging(hd.pingDB)))
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/shorten", hd.gzipMiddleware(hd.WithLogging(hd.shortURLJS)))
+		r.Route("/shorten", func(r chi.Router) {
+			r.Post("/", hd.gzipMiddleware(hd.WithLogging(hd.shortURLJS)))
+			r.Post("/batch", hd.gzipMiddleware(hd.WithLogging(hd.shortBatch)))
+		})
 	})
 	return r
 }
@@ -124,15 +129,6 @@ func (hd *HandlerData) WithLogging(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func generateShortKey(originalURL string) string {
-	// const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	// const keyLength = 8
-
-	// shortKey := make([]byte, keyLength)
-	// for i := range shortKey {
-	// 	shortKey[i] = charset[rand.Intn(len(charset))]
-	// }
-	// return string(shortKey)
-
 	hash := md5.Sum([]byte(originalURL))
 	return hex.EncodeToString(hash[:])
 }
@@ -173,14 +169,18 @@ func (hd *HandlerData) shortURL(res http.ResponseWriter, req *http.Request) {
 	}
 	shortKey := generateShortKey(originalURL)
 
-	err = hd.SM.PostURL(shortKey, originalURL)
+	conflict, err := hd.SM.PostURL(shortKey, originalURL)
 	if err != nil {
 		http.Error(res, "Cant write data in file", http.StatusInternalServerError)
 		return
 	}
 	shortenedURL := fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)
 	res.Header().Set("Content-Type", "text/plain")
-	res.WriteHeader(http.StatusCreated)
+	if conflict {
+		res.WriteHeader(http.StatusConflict)
+	} else {
+		res.WriteHeader(http.StatusCreated)
+	}
 	data := []byte(shortenedURL)
 	_, err = res.Write(data)
 	if err != nil {
@@ -195,8 +195,11 @@ func (hd *HandlerData) getURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	shortKey := chi.URLParam(req, "id")
-	// shortKey := req.RequestURI[1:]
-	originalURL := hd.SM.GetURL(shortKey)
+	originalURL, err := hd.SM.GetURL(shortKey)
+	if err != nil {
+		http.Error(res, "Error with sql query", http.StatusInternalServerError)
+		return
+	}
 	if originalURL == "" {
 		http.Error(res, "Invalid url key", http.StatusBadRequest)
 		return
@@ -228,7 +231,7 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 	}
 
 	shortKey := generateShortKey(originalURL)
-	err := hd.SM.PostURL(shortKey, originalURL)
+	conflict, err := hd.SM.PostURL(shortKey, originalURL)
 	if err != nil {
 		http.Error(res, "Cant write data in file", http.StatusInternalServerError)
 		return
@@ -238,8 +241,75 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 	sres.Result = fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)
 
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusCreated)
+	if conflict {
+		res.WriteHeader(http.StatusConflict)
+	} else {
+		res.WriteHeader(http.StatusCreated)
+	}
 	if err := json.NewEncoder(res).Encode(sres); err != nil {
+		http.Error(res, "error encoding response", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (hd *HandlerData) pingDB(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Invalid request method", http.StatusBadRequest)
+		return
+	}
+	if hd.SM.DB.NotAvailable() {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := hd.SM.DB.PingContext(ctx); err != nil {
+		http.Error(res, "connection could't be established", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+}
+
+func (hd *HandlerData) shortBatch(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(res, "Invalid request method", http.StatusBadRequest)
+		return
+	}
+	contentType := req.Header.Get("Content-Type")
+	if badContentType(contentType, "application/json") {
+		http.Error(res, "Header: Content-Type must be application/json", http.StatusBadRequest)
+		return
+	}
+
+	obj := make([]models.ShortenBatchRequest, 0)
+	data, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "Cant read body", http.StatusBadRequest)
+		return
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		http.Error(res, "Cant read json data", http.StatusBadRequest)
+		return
+	}
+	resData := make([]models.ShortenBatchResponse, 0, len(obj))
+	for i, data := range obj {
+		if data.OriginalURL == "" {
+			http.Error(res, "URL parameter is missing", http.StatusBadRequest)
+			return
+		}
+		obj[i].ShortKey = generateShortKey(data.OriginalURL)
+		resData = append(resData, models.ShortenBatchResponse{
+			CorrelationID: data.CorrelationID,
+			ShortURL:      fmt.Sprintf(hd.Cfg.BaseURL+"/%s", obj[i].ShortKey),
+		})
+	}
+	if err = hd.SM.PostBatch(obj); err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(res).Encode(resData); err != nil {
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return
 	}

@@ -10,9 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/config"
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/dbsql"
+
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/handlers"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/logger"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/models"
@@ -20,7 +23,7 @@ import (
 )
 
 func TestURLRouter(t *testing.T) {
-	hd := hd(t)
+	hd := hd(t, nil)
 	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
@@ -81,7 +84,8 @@ func TestURLRouter(t *testing.T) {
 			shortKey := strings.ReplaceAll(shortURL, "http://localhost:8080/", "")
 			require.NotEmpty(t, shortKey)
 
-			originalURL := hd.SM.GetURL(shortKey)
+			originalURL, err := hd.SM.GetURL(shortKey)
+			require.NoError(t, err)
 			require.NotEmpty(t, originalURL)
 
 			request, err = http.NewRequest(http.MethodGet, ts.URL+"/"+shortKey, nil)
@@ -104,7 +108,7 @@ func TestURLRouter(t *testing.T) {
 }
 
 func TestApiShorten(t *testing.T) {
-	hd := hd(t)
+	hd := hd(t, nil)
 	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
@@ -158,7 +162,7 @@ func TestApiShorten(t *testing.T) {
 }
 
 func TestGzip(t *testing.T) {
-	hd := hd(t)
+	hd := hd(t, nil)
 	ts := httptest.NewServer(hd.URLRouter())
 	defer ts.Close()
 
@@ -237,20 +241,156 @@ func TestGzip(t *testing.T) {
 			}
 		})
 	}
-
 }
 
-func hd(t *testing.T) handlers.HandlerData {
-	cfg, err := config.Parse()
+func TestPostBatch(t *testing.T) {
+	hd := hd(t, nil)
+	ts := httptest.NewServer(hd.URLRouter())
+	defer ts.Close()
+
+	type reqJS struct {
+		CorrelationID string `json:"correlation_id"`
+		OriginalURL   string `json:"original_url"`
+	}
+	testTable := []struct {
+		name string
+		data []reqJS
+	}{
+		{
+			name: "testing PostBatch",
+			data: []reqJS{
+				{
+					CorrelationID: "1",
+					OriginalURL:   "https://www.youtube.com",
+				},
+				{
+					CorrelationID: "2",
+					OriginalURL:   "https://www.youtube.com/watch?v=09839DpTctU&list=RD09839DpTctU&start_radio=1",
+				},
+			},
+		},
+	}
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+			js, err := json.Marshal(tt.data)
+			require.NoError(t, err)
+			body := bytes.NewReader(js)
+			request, err := http.NewRequest(http.MethodPost, ts.URL+"/api/shorten/batch", body)
+			require.NoError(t, err)
+			request.Header.Set("Content-Type", "application/json")
+			request.Host = "localhost:8080"
+
+			res, err := ts.Client().Do(request)
+			require.NoError(t, err)
+
+			resData, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+
+			resJS := make([]models.ShortenBatchResponse, 0)
+			err = json.Unmarshal(resData, &resJS)
+			require.NoError(t, err)
+
+			err = res.Body.Close()
+			require.NoError(t, err)
+
+			shortKey := strings.ReplaceAll(resJS[0].ShortURL, "http://localhost:8080/", "")
+			ourl := tt.data[0].OriginalURL
+
+			request, err = http.NewRequest(http.MethodGet, ts.URL+"/"+shortKey, nil)
+			require.NoError(t, err)
+			request.Host = "localhost:8080"
+
+			client := ts.Client()
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+			res, err = ts.Client().Do(request)
+			require.NoError(t, err)
+
+			assert.Equal(t, ourl, res.Header.Get("Location"))
+			err = res.Body.Close()
+			require.NoError(t, err)
+
+		})
+	}
+}
+
+// func TestPingDB(t *testing.T) {
+// 	type want struct {
+// 		statusCodePost int
+// 	}
+// 	testTable := []struct {
+// 		name    string
+// 		logPath string
+// 		want    want
+// 	}{
+// 		{
+// 			name:    "Путь из конфигурации",
+// 			logPath: "",
+// 			want: want{
+// 				statusCodePost: http.StatusOK,
+// 			},
+// 		},
+// 		{
+// 			name: "Путь с ошибкой",
+// 			logPath: fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+// 				`localhost`, `postgres`, `12345`, `shorten_dev`),
+// 			want: want{
+// 				statusCodePost: http.StatusInternalServerError,
+// 			},
+// 		},
+// 	}
+// 	for _, tt := range testTable {
+// 		t.Run(tt.name, func(t *testing.T) {
+
+// 			testCfg, _ := cfg(nil)
+// 			if tt.logPath > "" {
+// 				testCfg.DatabaseDSN = tt.logPath
+// 			}
+
+// 			hd := hd(t, testCfg)
+// 			ts := httptest.NewServer(hd.URLRouter())
+
+// 			request, err := http.NewRequest(http.MethodGet, ts.URL+"/ping", nil)
+// 			require.NoError(t, err)
+// 			request.Host = "localhost:8080"
+
+// 			res, err := ts.Client().Do(request)
+// 			require.NoError(t, err)
+
+// 			assert.Equal(t, tt.want.statusCodePost, res.StatusCode)
+
+// 			err = res.Body.Close()
+// 			require.NoError(t, err)
+
+// 			ts.Close()
+// 		})
+// 	}
+// }
+
+func hd(t *testing.T, testCfg *config.Config) handlers.HandlerData {
+	cfg, err := cfg(testCfg)
 	require.NoError(t, err)
 	sm, err := storage.NewStorageMap(cfg.FileStoragePath)
 	require.NoError(t, err)
 	l, err := logger.NewLogZap()
 	require.NoError(t, err)
+	db, err := dbsql.CheckConn(cfg.DatabaseDSN)
+	require.NoError(t, err)
+	sm.DB = db
 	hd := handlers.HandlerData{
 		SM:  sm,
 		Cfg: cfg,
 		L:   l,
 	}
 	return hd
+}
+
+func cfg(testCfg *config.Config) (*config.Config, error) {
+	switch testCfg {
+	case nil:
+		return config.Parse()
+	default:
+		return testCfg, nil
+	}
 }
