@@ -57,7 +57,7 @@ func CheckConn(databaseDSN string) (PSQLDB, error) {
 }
 
 func createTable(ctx context.Context, db *sql.DB, tableName string) error {
-	queryText := fmt.Sprintf("CREATE TABLE %s (original_url text, short_key text, correlation_id text);", tableName)
+	queryText := fmt.Sprintf("CREATE TABLE %s (original_url text UNIQUE, short_key text, correlation_id text);", tableName)
 	_, err := db.ExecContext(ctx, queryText)
 	if err != nil {
 		return err
@@ -65,18 +65,15 @@ func createTable(ctx context.Context, db *sql.DB, tableName string) error {
 	return nil
 }
 
-func (db PSQLDB) Insert(shortURL string, originalURL string) error {
-	if db.NotAvailable() {
-		return nil
-	}
-	queryText :=
-		`INSERT INTO shorten_urls (original_url, short_key, correlation_id)
-		VALUES ($1, $2, $3)`
-	_, err := db.db.ExecContext(context.Background(), queryText, originalURL, shortURL, "")
+func (db PSQLDB) Insert(shortKey string, originalURL string) (bool, error) {
+	data := make([]models.ShortenBatchRequest, 1)
+	data[0].ShortKey = shortKey
+	data[0].OriginalURL = originalURL
+	err := db.InsertBatch(data)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return data[0].Conflict, nil
 }
 
 func (db PSQLDB) InsertBatch(dataToWrite []models.ShortenBatchRequest) error {
@@ -89,10 +86,21 @@ func (db PSQLDB) InsertBatch(dataToWrite []models.ShortenBatchRequest) error {
 		return err
 	}
 	queryText :=
-		`INSERT INTO shorten_urls (original_url, short_key, correlation_id)
-		VALUES ($1, $2, $3)`
-	for _, data := range dataToWrite {
-		_, err := tx.ExecContext(context.Background(), queryText,
+		`INSERT INTO shorten_urls 
+		(
+			original_url, 
+			short_key, 
+			correlation_id
+		)
+		VALUES 
+		(
+			$1, 
+			$2, 
+			$3
+		)
+		ON CONFLICT (original_url) DO NOTHING;`
+	for i, data := range dataToWrite {
+		result, err := tx.ExecContext(context.Background(), queryText,
 			data.OriginalURL,
 			data.ShortKey,
 			data.CorrelationID)
@@ -100,6 +108,12 @@ func (db PSQLDB) InsertBatch(dataToWrite []models.ShortenBatchRequest) error {
 			tx.Rollback()
 			return err
 		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		dataToWrite[i].Conflict = count == 0
 	}
 	return tx.Commit()
 }

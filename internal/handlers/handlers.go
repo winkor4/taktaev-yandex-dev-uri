@@ -169,14 +169,18 @@ func (hd *HandlerData) shortURL(res http.ResponseWriter, req *http.Request) {
 	}
 	shortKey := generateShortKey(originalURL)
 
-	err = hd.SM.PostURL(shortKey, originalURL)
+	conflict, err := hd.SM.PostURL(shortKey, originalURL)
 	if err != nil {
 		http.Error(res, "Cant write data in file", http.StatusInternalServerError)
 		return
 	}
 	shortenedURL := fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)
 	res.Header().Set("Content-Type", "text/plain")
-	res.WriteHeader(http.StatusCreated)
+	if conflict {
+		res.WriteHeader(http.StatusConflict)
+	} else {
+		res.WriteHeader(http.StatusCreated)
+	}
 	data := []byte(shortenedURL)
 	_, err = res.Write(data)
 	if err != nil {
@@ -227,7 +231,7 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 	}
 
 	shortKey := generateShortKey(originalURL)
-	err := hd.SM.PostURL(shortKey, originalURL)
+	conflict, err := hd.SM.PostURL(shortKey, originalURL)
 	if err != nil {
 		http.Error(res, "Cant write data in file", http.StatusInternalServerError)
 		return
@@ -237,7 +241,11 @@ func (hd *HandlerData) shortURLJS(res http.ResponseWriter, req *http.Request) {
 	sres.Result = fmt.Sprintf(hd.Cfg.BaseURL+"/%s", shortKey)
 
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusCreated)
+	if conflict {
+		res.WriteHeader(http.StatusConflict)
+	} else {
+		res.WriteHeader(http.StatusCreated)
+	}
 	if err := json.NewEncoder(res).Encode(sres); err != nil {
 		http.Error(res, "error encoding response", http.StatusInternalServerError)
 		return

@@ -78,14 +78,14 @@ func (s *StorageMap) GetURL(key string) (string, error) {
 	return ourl, nil
 }
 
-func (s *StorageMap) PostURL(key string, ourl string) error {
+func (s *StorageMap) PostURL(key string, ourl string) (bool, error) {
+	conflict, err := s.DB.Insert(key, ourl)
+	if err != nil {
+		return false, err
+	}
 	_, ok := s.m[key]
 	if ok {
-		return nil
-	}
-	err := s.DB.Insert(key, ourl)
-	if err != nil {
-		return err
+		return conflict, nil
 	}
 	s.m[key] = URLData{
 		OriginalURL: ourl,
@@ -97,7 +97,7 @@ func (s *StorageMap) PostURL(key string, ourl string) error {
 		OriginalURL: ourl,
 	}
 	s.sjs.table = append(s.sjs.table, js)
-	return json.NewEncoder(s.sjs.file).Encode(&js)
+	return conflict, json.NewEncoder(s.sjs.file).Encode(&js)
 }
 
 func (s *StorageMap) PostBatch(obj []models.ShortenBatchRequest) error {
