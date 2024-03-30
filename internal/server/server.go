@@ -40,8 +40,8 @@ func SrvRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(gzipHandler, logHandler(s))
 
-	// r.Post("/", checkContentTypeHandler(shortURL(s), "text/plain"))
-	r.Post("/", shortURL(s))
+	r.Post("/", checkContentTypeHandler(shortURL(s), "text/plain"))
+	// r.Post("/", shortURL(s))
 	r.Get("/{id}", getURL(s))
 	r.Get("/ping", pingDB(s))
 	r.Mount("/api", apiRouter(s))
