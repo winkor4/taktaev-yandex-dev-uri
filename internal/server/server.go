@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
@@ -39,7 +40,7 @@ func SrvRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(gzipHandler, logHandler(s))
 
-	r.Post("/", shortURL(s))
+	r.Post("/", checkContentTypeHandler(shortURL(s), "text/plain"))
 	r.Get("/{id}", getURL(s))
 	r.Get("/ping", pingDB(s))
 	r.Mount("/api", apiRouter(s))
@@ -55,7 +56,24 @@ func apiRouter(s *Server) *chi.Mux {
 
 func apiShortenRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
-	r.Post("/", shortURL(s))
-	r.Post("/batch", shortBatch(s))
+	r.Post("/", checkContentTypeHandler(shortURL(s), "application/json"))
+	r.Post("/batch", checkContentTypeHandler(shortBatch(s), "application/json"))
 	return r
+}
+
+func checkContentTypeHandler(h http.HandlerFunc, exContentType string) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentType := r.Header.Get("Content-Type")
+		if strings.Contains(contentType, "application/x-gzip") {
+			r.Header.Set("Content-Type", exContentType)
+			h(w, r)
+			return
+		}
+
+		if !strings.Contains(contentType, exContentType) {
+			http.Error(w, "unexpected Content-Type", http.StatusBadRequest)
+			return
+		}
+		h(w, r)
+	})
 }

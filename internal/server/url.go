@@ -2,12 +2,13 @@ package server
 
 import (
 	"context"
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -23,19 +24,10 @@ func shortURL(s *Server) http.HandlerFunc {
 
 		contentType := r.Header.Get("Content-Type")
 
-		var ourl string
-		switch {
-		case strings.Contains(contentType, "application/json"):
-			var schema urlSchema
-			if err := json.Unmarshal(body, &schema); err != nil {
-				http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
-				return
-			}
-			ourl = schema.URL
-			contentType = "application/json"
-		case strings.Contains(contentType, "text/plain"):
-			ourl = string(body)
-			contentType = "text/plain"
+		ourl, err := readOURL(contentType, body)
+		if err != nil {
+			http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
+			return
 		}
 
 		if ourl == "" {
@@ -78,6 +70,23 @@ func shortURL(s *Server) http.HandlerFunc {
 			}
 		}
 	}
+}
+
+func readOURL(contentType string, body []byte) (string, error) {
+	var ourl string
+	switch {
+	case strings.Contains(contentType, "application/json"):
+		var schema urlSchema
+		if err := json.Unmarshal(body, &schema); err != nil {
+			return "", err
+		}
+		ourl = schema.URL
+		contentType = "application/json"
+	case strings.Contains(contentType, "text/plain"):
+		ourl = string(body)
+		contentType = "text/plain"
+	}
+	return ourl, nil
 }
 
 func getURL(s *Server) http.HandlerFunc {
