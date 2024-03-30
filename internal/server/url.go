@@ -24,12 +24,6 @@ func shortURL(s *Server) http.HandlerFunc {
 
 		contentType := r.Header.Get("Content-Type")
 
-		// ourl, err := readOURL(contentType, body)
-		// if err != nil {
-		// 	http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
-		// 	return
-		// }
-
 		var ourl string
 		switch {
 		case strings.Contains(contentType, "application/json"):
@@ -86,23 +80,6 @@ func shortURL(s *Server) http.HandlerFunc {
 		}
 	}
 }
-
-// func readOURL(contentType string, body []byte) (string, error) {
-// 	var ourl string
-// 	switch {
-// 	case strings.Contains(contentType, "application/json"):
-// 		var schema urlSchema
-// 		if err := json.Unmarshal(body, &schema); err != nil {
-// 			return "", err
-// 		}
-// 		ourl = schema.URL
-// 		contentType = "application/json"
-// 	case strings.Contains(contentType, "text/plain"):
-// 		ourl = string(body)
-// 		contentType = "text/plain"
-// 	}
-// 	return ourl, nil
-// }
 
 func getURL(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
