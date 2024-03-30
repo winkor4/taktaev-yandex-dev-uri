@@ -103,7 +103,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 	type testData struct {
 		name             string
 		id               string
-		post_id          string
+		postID           string
 		method           string
 		path             string
 		contentType      string
@@ -136,7 +136,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 		{
 			name:             dbName + " Выполнить Post запрос /",
 			id:               "post /",
-			post_id:          "",
+			postID:           "",
 			method:           http.MethodPost,
 			path:             "/",
 			contentType:      "text/plain",
@@ -155,7 +155,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 		{
 			name:             dbName + " Выполнить повторно Post запрос /",
 			id:               "second post /",
-			post_id:          "",
+			postID:           "",
 			method:           http.MethodPost,
 			path:             "/",
 			contentType:      "text/plain",
@@ -174,7 +174,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 		{
 			name:             dbName + " Выполнить Get запрос /{id}",
 			id:               "get /{id}",
-			post_id:          "post /",
+			postID:           "post /",
 			method:           http.MethodGet,
 			path:             "/",
 			contentType:      "",
@@ -193,7 +193,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 		{
 			name:             dbName + " Выполнить Get запрос /ping",
 			id:               "get /ping",
-			post_id:          "",
+			postID:           "",
 			method:           http.MethodGet,
 			path:             "/ping",
 			contentType:      "",
@@ -212,7 +212,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 		{
 			name:             dbName + " Выполнить Post запрос /api/shorten",
 			id:               "post /api/shorten",
-			post_id:          "",
+			postID:           "",
 			method:           http.MethodPost,
 			path:             "/api/shorten",
 			contentType:      "application/json",
@@ -231,7 +231,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 		{
 			name:             dbName + " Выполнить повторно Post запрос /api/shorten",
 			id:               "second post /api/shorten",
-			post_id:          "",
+			postID:           "",
 			method:           http.MethodPost,
 			path:             "/api/shorten",
 			contentType:      "application/json",
@@ -252,8 +252,8 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 	for _, testData := range testTable {
 		t.Run(testData.name, func(t *testing.T) {
 
-			if testData.post_id != "" {
-				testData.path = testData.path + cache[testData.post_id].key
+			if testData.postID != "" {
+				testData.path = testData.path + cache[testData.postID].key
 			}
 
 			body := bytes.NewReader(testData.body)
