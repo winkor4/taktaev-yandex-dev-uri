@@ -1,10 +1,11 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/pkg/config"
-	"net/http"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -30,7 +31,8 @@ func New(c Config) *Server {
 }
 
 func (s *Server) Run() error {
-	return http.ListenAndServe(":8080", SrvRouter(s))
+	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
+	return http.ListenAndServe(s.cfg.SrvAdr, SrvRouter(s))
 }
 
 func SrvRouter(s *Server) *chi.Mux {
