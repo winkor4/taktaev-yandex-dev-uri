@@ -2,6 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/adapter/file"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/adapter/memory"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/adapter/psql"
@@ -12,13 +20,6 @@ import (
 	sfile "github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage/file"
 	smemory "github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage/memory"
 	spsql "github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage/psql"
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"strings"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,8 +36,8 @@ func TestApp(t *testing.T) {
 		if srv == nil {
 			continue
 		}
-		testApi(t, srv, dbName)
-		testApiBatch(t, srv, dbName)
+		testAPI(t, srv, dbName)
+		testAPIBatch(t, srv, dbName)
 		srv.Close()
 	}
 }
@@ -81,7 +82,7 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 	return httptest.NewServer(server.SrvRouter(srv))
 }
 
-func testApi(t *testing.T, srv *httptest.Server, dbName string) {
+func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 
 	type reqData struct {
 		shortenedURL string
@@ -315,7 +316,7 @@ func testApi(t *testing.T, srv *httptest.Server, dbName string) {
 	}
 }
 
-func testApiBatch(t *testing.T, srv *httptest.Server, dbName string) {
+func testAPIBatch(t *testing.T, srv *httptest.Server, dbName string) {
 
 	type want struct {
 		contentType string
