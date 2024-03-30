@@ -34,9 +34,11 @@ func Parse() (*Config, error) {
 	// dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 	// 	`localhost`, `postgres`, `123`, `shorten_dev`)
 
+	// tmp/short-url-db.json
+
 	stringVar(&flagSrvAdr, "a", "localhost:8080", "address and port to run server")
 	stringVar(&flagResSrvAdr, "b", "http://localhost:8080", "address and port to run server")
-	stringVar(&flagFileStoragePath, "f", "tmp/short-url-db.json", "file storage path")
+	stringVar(&flagFileStoragePath, "f", "", "file storage path")
 	stringVar(&flagDSN, "d", "", "PostgresSQL path")
 	stringVar(&flagLogLevel, "l", "info", "log level")
 	flag.Parse()
