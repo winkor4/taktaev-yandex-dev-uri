@@ -62,7 +62,7 @@ func apiShortenRouter(s *Server) *chi.Mux {
 }
 
 func checkContentTypeHandler(h http.HandlerFunc, exContentType string) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		contentType := r.Header.Get("Content-Type")
 		if strings.Contains(contentType, "application/x-gzip") {
 			r.Header.Set("Content-Type", exContentType)
@@ -75,5 +75,5 @@ func checkContentTypeHandler(h http.HandlerFunc, exContentType string) http.Hand
 			return
 		}
 		h(w, r)
-	})
+	}
 }
