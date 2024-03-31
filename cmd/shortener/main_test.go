@@ -27,8 +27,8 @@ import (
 
 func TestApp(t *testing.T) {
 	storages := make([]string, 3)
-	// storages[0] = ""
-	// storages[1] = "file"
+	storages[0] = ""
+	storages[1] = "file"
 	storages[2] = "dsn"
 
 	for _, dbName := range storages {
