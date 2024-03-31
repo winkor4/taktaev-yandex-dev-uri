@@ -375,7 +375,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 				assert.Equal(t, testData.want.originalURL, r.Header.Get("Location"))
 			}
 
-			if testData.method == http.MethodGet {
+			if testData.method == http.MethodGet && !testData.checkBody {
 				return
 			}
 

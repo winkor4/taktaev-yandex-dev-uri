@@ -134,5 +134,9 @@ func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
 		urls = append(urls, url)
 	}
 
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
 	return urls, nil
 }

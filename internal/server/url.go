@@ -161,7 +161,12 @@ func getUsersURL(s *Server) http.HandlerFunc {
 			http.Error(w, "no content", http.StatusNoContent)
 		}
 
+		for i := range urls {
+			urls[i].Key = fmt.Sprintf(s.cfg.ResSrvAdr+"/%s", urls[i].Key)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(urls); err != nil {
 			http.Error(w, "Can't encode response", http.StatusInternalServerError)
 			return
