@@ -3,6 +3,7 @@ package psql
 import (
 	"context"
 	"database/sql"
+
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
@@ -64,7 +65,8 @@ func (db *DB) Set(urls []model.URL) error {
 	for i, url := range urls {
 		result, err := tx.ExecContext(ctx, queryInsert,
 			url.OriginalURL,
-			url.Key)
+			url.Key,
+			url.UserID)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -113,4 +115,24 @@ func (db *DB) DeleteTable() error {
 	}
 
 	return nil
+}
+
+func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
+	rows, err := db.db.QueryContext(context.Background(), querySelectUsersURL, user)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls := make([]model.KeyAndOURL, 0)
+	for rows.Next() {
+		var url model.KeyAndOURL
+		err := rows.Scan(&url.OriginalURL, &url.Key)
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, url)
+	}
+
+	return urls, nil
 }

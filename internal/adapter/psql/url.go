@@ -25,3 +25,7 @@ func (r *Repository) SaveURL(urls []model.URL) error {
 func (r *Repository) PingDB(ctx context.Context) error {
 	return r.Ping(ctx)
 }
+
+func (r *Repository) GetUsersURL(user string) ([]model.KeyAndOURL, error) {
+	return r.GetByUser(user)
+}

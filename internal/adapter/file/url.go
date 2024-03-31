@@ -26,3 +26,7 @@ func (r *Repository) SaveURL(urls []model.URL) error {
 func (r *Repository) PingDB(ctx context.Context) error {
 	return errors.New("connection could't be established")
 }
+
+func (r *Repository) GetUsersURL(user string) ([]model.KeyAndOURL, error) {
+	return r.GetByUser(user), nil
+}

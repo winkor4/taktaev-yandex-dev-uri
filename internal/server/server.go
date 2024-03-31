@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/pkg/config"
@@ -38,7 +39,7 @@ func (s *Server) Run() error {
 
 func SrvRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(gzipHandler, logHandler(s))
+	r.Use(authorizationHandler, gzipHandler, logHandler(s))
 
 	r.Post("/", checkContentTypeHandler(shortURL(s), "text/plain"))
 	r.Get("/{id}", getURL(s))
@@ -51,6 +52,7 @@ func SrvRouter(s *Server) *chi.Mux {
 func apiRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Mount("/shorten", apiShortenRouter(s))
+	r.Mount("/user", apiUserRputer(s))
 	return r
 }
 
@@ -58,6 +60,12 @@ func apiShortenRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Post("/", checkContentTypeHandler(shortURL(s), "application/json"))
 	r.Post("/batch", checkContentTypeHandler(shortBatch(s), "application/json"))
+	return r
+}
+
+func apiUserRputer(s *Server) *chi.Mux {
+	r := chi.NewRouter()
+	r.Get("/urls", getUsersURL(s))
 	return r
 }
 
@@ -76,4 +84,17 @@ func checkContentTypeHandler(h http.HandlerFunc, exContentType string) http.Hand
 		}
 		h(w, r)
 	}
+}
+
+func authorizationHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		user := r.Header.Get("Authorization")
+		if user == "" {
+			user = uuid.New().String()
+		}
+		w.Header().Add("Authorization", user)
+
+		h.ServeHTTP(w, r)
+	})
 }

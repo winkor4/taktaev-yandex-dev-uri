@@ -1,17 +1,20 @@
 package memory
 
 import (
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 	"errors"
+
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
 type DB struct {
-	dbMap map[string]string
+	dbMap    map[string]string
+	usersMap map[string][]model.KeyAndOURL
 }
 
 func New() *DB {
 	return &DB{
-		dbMap: make(map[string]string),
+		dbMap:    make(map[string]string),
+		usersMap: make(map[string][]model.KeyAndOURL, 0),
 	}
 }
 
@@ -30,8 +33,23 @@ func (db *DB) Set(url *model.URL) {
 		return
 	}
 	db.dbMap[url.Key] = url.OriginalURL
+
+	if url.UserID == "" {
+		return
+	}
+	userURLS := db.usersMap[url.UserID]
+	userURLS = append(userURLS, model.KeyAndOURL{
+		Key:         url.Key,
+		OriginalURL: url.OriginalURL,
+	})
+	db.usersMap[url.UserID] = userURLS
 }
 
 func (db *DB) Close() error {
 	return nil
+}
+
+func (db *DB) GetByUser(user string) []model.KeyAndOURL {
+	usersURLS := db.usersMap[user]
+	return usersURLS
 }

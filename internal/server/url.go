@@ -23,6 +23,7 @@ func shortURL(s *Server) http.HandlerFunc {
 		}
 
 		contentType := r.Header.Get("Content-Type")
+		user := w.Header().Get("Authorization")
 
 		var ourl string
 		switch {
@@ -47,6 +48,7 @@ func shortURL(s *Server) http.HandlerFunc {
 		urls := make([]model.URL, 1)
 		urls[0].Key = model.ShortKey(ourl)
 		urls[0].OriginalURL = ourl
+		urls[0].UserID = user
 
 		err = s.urlRepo.SaveURL(urls)
 		if err != nil {
@@ -111,6 +113,8 @@ func shortBatch(s *Server) http.HandlerFunc {
 			return
 		}
 
+		user := w.Header().Get("Authorization")
+
 		urls := make([]model.URL, 0)
 		if err := json.Unmarshal(body, &urls); err != nil {
 			http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
@@ -120,6 +124,7 @@ func shortBatch(s *Server) http.HandlerFunc {
 		data := make([]batchResponseSchema, 0, len(urls))
 		for i, url := range urls {
 			urls[i].Key = model.ShortKey(url.OriginalURL)
+			urls[i].UserID = user
 			data = append(data, batchResponseSchema{
 				CorrelationID: url.CorrelationID,
 				ShortURL:      fmt.Sprintf(s.cfg.ResSrvAdr+"/%s", urls[i].Key),
@@ -134,6 +139,30 @@ func shortBatch(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		if err := json.NewEncoder(w).Encode(data); err != nil {
+			http.Error(w, "Can't encode response", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func getUsersURL(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := r.Header.Get("Authorization")
+		if user == "" {
+			http.Error(w, "unauthorized user", http.StatusUnauthorized)
+		}
+
+		urls, err := s.urlRepo.GetUsersURL(user)
+		if err != nil {
+			http.Error(w, "can't get user's urls", http.StatusInternalServerError)
+			return
+		}
+		if len(urls) == 0 {
+			http.Error(w, "no content", http.StatusNoContent)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(urls); err != nil {
 			http.Error(w, "Can't encode response", http.StatusInternalServerError)
 			return
 		}

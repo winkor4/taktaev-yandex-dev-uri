@@ -2,8 +2,9 @@ package memory
 
 import (
 	"context"
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 	"errors"
+
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
 func (r *Repository) GetURL(key string) (*model.URL, error) {
@@ -28,4 +29,8 @@ func (r *Repository) SaveURL(urls []model.URL) error {
 
 func (r *Repository) PingDB(ctx context.Context) error {
 	return errors.New("connection could't be established")
+}
+
+func (r *Repository) GetUsersURL(user string) ([]model.KeyAndOURL, error) {
+	return r.GetByUser(user), nil
 }

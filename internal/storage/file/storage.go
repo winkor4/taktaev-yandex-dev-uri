@@ -1,22 +1,25 @@
 package file
 
 import (
-	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 	"encoding/json"
 	"errors"
 	"os"
 	"strings"
+
+	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
 type DB struct {
-	file *os.File
-	data map[string]fileURL
+	file     *os.File
+	data     map[string]fileURL
+	usersMap map[string][]model.KeyAndOURL
 }
 
 type fileURL struct {
 	UUID        int    `json:"uuid"`
 	ShortKey    string `json:"short_key"`
 	OriginalURL string `json:"original_url"`
+	UserID      string `json:"user_id"`
 }
 
 func New(fname string) (*DB, error) {
@@ -25,14 +28,13 @@ func New(fname string) (*DB, error) {
 		return nil, err
 	}
 
-	data, err := readStorageFile(fname)
+	out := new(DB)
+	out.file = file
+
+	err = readStorageFile(out, fname)
 	if err != nil {
 		return nil, err
 	}
-
-	out := new(DB)
-	out.file = file
-	out.data = data
 
 	return out, nil
 }
@@ -41,12 +43,13 @@ func (db *DB) CloseFile() error {
 	return db.file.Close()
 }
 
-func readStorageFile(fname string) (map[string]fileURL, error) {
-	out := make(map[string]fileURL)
+func readStorageFile(db *DB, fname string) error {
+	fileData := make(map[string]fileURL)
+	usersMap := make(map[string][]model.KeyAndOURL)
 
 	strData, err := os.ReadFile(fname)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var schema fileURL
@@ -56,12 +59,22 @@ func readStorageFile(fname string) (map[string]fileURL, error) {
 			continue
 		}
 		if err := json.Unmarshal([]byte(data), &schema); err != nil {
-			return nil, err
+			return err
 		}
-		out[schema.ShortKey] = schema
+		fileData[schema.ShortKey] = schema
+
+		userURLS := usersMap[schema.UserID]
+		userURLS = append(userURLS, model.KeyAndOURL{
+			Key:         schema.ShortKey,
+			OriginalURL: schema.OriginalURL,
+		})
+		usersMap[schema.UserID] = userURLS
 	}
 
-	return out, nil
+	db.data = fileData
+	db.usersMap = usersMap
+
+	return nil
 }
 
 func (db *DB) Get(key string) (string, error) {
@@ -87,6 +100,7 @@ func (db *DB) Set(urls []model.URL) error {
 			UUID:        uuid,
 			ShortKey:    url.Key,
 			OriginalURL: url.OriginalURL,
+			UserID:      url.UserID,
 		}
 
 		err := json.NewEncoder(db.file).Encode(&fileURL)
@@ -95,7 +109,22 @@ func (db *DB) Set(urls []model.URL) error {
 		}
 		db.data[fileURL.ShortKey] = fileURL
 		uuid++
+
+		if url.UserID == "" {
+			continue
+		}
+		userURLS := db.usersMap[url.UserID]
+		userURLS = append(userURLS, model.KeyAndOURL{
+			Key:         url.Key,
+			OriginalURL: url.OriginalURL,
+		})
+		db.usersMap[url.UserID] = userURLS
 	}
 
 	return nil
+}
+
+func (db *DB) GetByUser(user string) []model.KeyAndOURL {
+	usersURLS := db.usersMap[user]
+	return usersURLS
 }
