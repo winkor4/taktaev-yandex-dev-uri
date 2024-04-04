@@ -198,16 +198,14 @@ func deleteURL(s *Server) http.HandlerFunc {
 			return
 		}
 
-		s.urlRepo.DeleteURL(user, keys)
+		deleteChan := make(chan []string)
 
-		// deleteChan := make(chan []string)
+		go func(deleteChan chan<- []string, keys []string) {
+			defer close(deleteChan)
+			deleteChan <- keys
+		}(deleteChan, keys)
 
-		// go func(deleteChan chan<- []string, keys []string) {
-		// 	defer close(deleteChan)
-		// 	deleteChan <- keys
-		// }(deleteChan, keys)
-
-		// go urlRemover(s, user, deleteChan)
+		go urlRemover(s, user, deleteChan)
 
 		w.WriteHeader(http.StatusAccepted)
 	}
