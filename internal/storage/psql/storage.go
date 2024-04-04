@@ -66,7 +66,8 @@ func (db *DB) Set(urls []model.URL) error {
 		result, err := tx.ExecContext(ctx, queryInsert,
 			url.OriginalURL,
 			url.Key,
-			url.UserID)
+			url.UserID,
+			false)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -90,9 +91,13 @@ func (db *DB) Set(urls []model.URL) error {
 func (db *DB) Get(key string) (string, error) {
 	row := db.db.QueryRowContext(context.Background(), querySelectURL, key)
 	ourl := new(string)
-	err := row.Scan(ourl)
+	isDeleted := new(bool)
+	err := row.Scan(ourl, isDeleted)
 	if err != nil {
 		return "", err
+	}
+	if *isDeleted {
+		return "", model.ErrIsDeleted
 	}
 	return *ourl, nil
 }
@@ -139,4 +144,27 @@ func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
 	}
 
 	return urls, nil
+}
+
+func (db *DB) UpdateDeleteFlag(user string, keys []string) {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return
+	}
+
+	ctx := context.Background()
+	for _, key := range keys {
+		_, err := tx.ExecContext(ctx, queryUpdateDeleteFlag,
+			key,
+			user)
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		return
+	}
 }

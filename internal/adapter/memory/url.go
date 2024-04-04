@@ -34,3 +34,7 @@ func (r *Repository) PingDB(ctx context.Context) error {
 func (r *Repository) GetUsersURL(user string) ([]model.KeyAndOURL, error) {
 	return r.GetByUser(user), nil
 }
+
+func (r *Repository) DeleteURL(user string, keys []string) {
+	r.UpdateDeleteFlag(user, keys)
+}

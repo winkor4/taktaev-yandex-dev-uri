@@ -13,15 +13,15 @@ import (
 )
 
 type Config struct {
-	URLRepo model.URLRepository
-	Cfg     *config.Config
-	Logger  *log.Logger
+	URLRepo    model.URLRepository
+	Cfg        *config.Config
+	Logger     *log.Logger
 }
 
 type Server struct {
-	urlRepo model.URLRepository
-	cfg     *config.Config
-	logger  *log.Logger
+	urlRepo    model.URLRepository
+	cfg        *config.Config
+	logger     *log.Logger
 }
 
 func New(c Config) *Server {
@@ -66,6 +66,7 @@ func apiShortenRouter(s *Server) *chi.Mux {
 func apiUserRputer(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Get("/urls", getUsersURL(s))
+	r.Delete("/urls", checkContentTypeHandler(deleteURL(s), "application/json"))
 	return r
 }
 

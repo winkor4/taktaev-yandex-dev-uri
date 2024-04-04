@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
@@ -20,6 +21,7 @@ type fileURL struct {
 	ShortKey    string `json:"short_key"`
 	OriginalURL string `json:"original_url"`
 	UserID      string `json:"user_id"`
+	IsDeleted   bool   `json:"is_deleted"`
 }
 
 func New(fname string) (*DB, error) {
@@ -82,6 +84,9 @@ func (db *DB) Get(key string) (string, error) {
 	if !ok {
 		return "", errors.New("not found")
 	}
+	if fileData.IsDeleted {
+		return "", model.ErrIsDeleted
+	}
 	return fileData.OriginalURL, nil
 }
 
@@ -101,6 +106,7 @@ func (db *DB) Set(urls []model.URL) error {
 			ShortKey:    url.Key,
 			OriginalURL: url.OriginalURL,
 			UserID:      url.UserID,
+			IsDeleted:   false,
 		}
 
 		err := json.NewEncoder(db.file).Encode(&fileURL)
@@ -127,4 +133,50 @@ func (db *DB) Set(urls []model.URL) error {
 func (db *DB) GetByUser(user string) []model.KeyAndOURL {
 	usersURLS := db.usersMap[user]
 	return usersURLS
+}
+
+func (db *DB) UpdateDeleteFlag(user string, keys []string) {
+	userURLS := db.usersMap[user]
+
+	for _, key := range keys {
+		url := db.data[key]
+		if url.UserID != user {
+			continue
+		}
+		url.IsDeleted = true
+		db.data[key] = url
+
+		idx := slices.IndexFunc(userURLS, func(v model.KeyAndOURL) bool { return v.Key == key })
+		if idx >= 0 {
+			userURLS[idx] = userURLS[len(userURLS)-1]
+			userURLS = userURLS[:len(userURLS)-1]
+		}
+	}
+
+	db.usersMap[user] = userURLS
+
+	fname := db.file.Name()
+
+	err := db.file.Close()
+	if err != nil {
+		return
+	}
+	err = os.Remove(fname)
+	if err != nil {
+		return
+	}
+
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return
+	}
+
+	db.file = file
+
+	for _, fileURL := range db.data {
+		err := json.NewEncoder(db.file).Encode(&fileURL)
+		if err != nil {
+			return
+		}
+	}
 }

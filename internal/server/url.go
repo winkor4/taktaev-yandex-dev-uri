@@ -87,6 +87,10 @@ func getURL(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := chi.URLParam(r, "id")
 		url, err := s.urlRepo.GetURL(key)
+		if err == model.ErrIsDeleted {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		if err != nil {
 			http.Error(w, "Not found", http.StatusBadRequest)
 		}
@@ -172,4 +176,43 @@ func getUsersURL(s *Server) http.HandlerFunc {
 			return
 		}
 	}
+}
+
+func deleteURL(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := r.Header.Get("Authorization")
+		if user == "" {
+			http.Error(w, "unauthorized user", http.StatusUnauthorized)
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Can't read body", http.StatusBadRequest)
+			return
+		}
+
+		keys := make([]string, 0)
+		if err := json.Unmarshal(body, &keys); err != nil {
+			http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
+			return
+		}
+
+		s.urlRepo.DeleteURL(user, keys)
+
+		// deleteChan := make(chan []string)
+
+		// go func(deleteChan chan<- []string, keys []string) {
+		// 	defer close(deleteChan)
+		// 	deleteChan <- keys
+		// }(deleteChan, keys)
+
+		// go urlRemover(s, user, deleteChan)
+
+		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+func urlRemover(s *Server, user string, ch <-chan []string) {
+	keys := <-ch
+	s.urlRepo.DeleteURL(user, keys)
 }

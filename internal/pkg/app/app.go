@@ -32,9 +32,9 @@ func Run() error {
 	defer logger.Close()
 
 	srv := server.New(server.Config{
-		URLRepo: repo,
-		Cfg:     cfg,
-		Logger:  logger,
+		URLRepo:    repo,
+		Cfg:        cfg,
+		Logger:     logger,
 	})
 
 	return srv.Run()
@@ -44,7 +44,7 @@ type dbCloser func() error
 
 func newRepo(cfg *config.Config) (storage.Repository, dbCloser, error) {
 	var (
-		repo storage.Repository
+		repo  storage.Repository
 		close dbCloser
 	)
 

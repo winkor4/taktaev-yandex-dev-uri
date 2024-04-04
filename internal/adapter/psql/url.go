@@ -2,6 +2,7 @@ package psql
 
 import (
 	"context"
+
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
@@ -28,4 +29,8 @@ func (r *Repository) PingDB(ctx context.Context) error {
 
 func (r *Repository) GetUsersURL(user string) ([]model.KeyAndOURL, error) {
 	return r.GetByUser(user)
+}
+
+func (r *Repository) DeleteURL(user string, keys []string) {
+	r.UpdateDeleteFlag(user, keys)
 }
