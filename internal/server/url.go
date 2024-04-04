@@ -181,11 +181,7 @@ func getUsersURL(s *Server) http.HandlerFunc {
 func deleteURL(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.Header.Get("Authorization")
-		if user == "" {
-			w.WriteHeader(http.StatusAccepted)
-			return
-		}
-
+		
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Can't read body", http.StatusBadRequest)

@@ -136,24 +136,31 @@ func (db *DB) GetByUser(user string) []model.KeyAndOURL {
 }
 
 func (db *DB) UpdateDeleteFlag(user string, keys []string) {
-	userURLS := db.usersMap[user]
+	userURLS, ok := db.usersMap[user]
 
 	for _, key := range keys {
 		url := db.data[key]
-		if url.UserID != user {
+		if url.UserID != user && user != "" {
 			continue
 		}
 		url.IsDeleted = true
 		db.data[key] = url
 
-		idx := slices.IndexFunc(userURLS, func(v model.KeyAndOURL) bool { return v.Key == key })
-		if idx >= 0 {
-			userURLS[idx] = userURLS[len(userURLS)-1]
-			userURLS = userURLS[:len(userURLS)-1]
+		if ok {
+			idx := slices.IndexFunc(userURLS, func(v model.KeyAndOURL) bool { return v.Key == key })
+			if idx >= 0 {
+				userURLS[idx] = userURLS[len(userURLS)-1]
+				userURLS = userURLS[:len(userURLS)-1]
+			}
 		}
 	}
 
-	db.usersMap[user] = userURLS
+	switch {
+	case user != "":
+		db.usersMap[user] = userURLS
+	default:
+		db.usersMap = make(map[string][]model.KeyAndOURL, 0)
+	}
 
 	fname := db.file.Name()
 

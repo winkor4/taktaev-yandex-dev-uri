@@ -154,9 +154,16 @@ func (db *DB) UpdateDeleteFlag(user string, keys []string) {
 
 	ctx := context.Background()
 	for _, key := range keys {
-		_, err := tx.ExecContext(ctx, queryUpdateDeleteFlag,
-			key,
-			user)
+		var err error
+		switch {
+		case user != "":
+			_, err = tx.ExecContext(ctx, queryUpdateDeleteFlagUser,
+				key,
+				user)
+		default:
+			_, err = tx.ExecContext(ctx, queryUpdateDeleteFlag,
+				key)
+		}
 		if err != nil {
 			tx.Rollback()
 			return
