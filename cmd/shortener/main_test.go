@@ -594,6 +594,8 @@ func testAPIDelete(t *testing.T, srv *httptest.Server, dbName string) {
 			client := srv.Client()
 			r, err := client.Do(request)
 			require.NoError(t, err)
+			err = r.Body.Close()
+			require.NoError(t, err)
 			assert.Equal(t, testData.want.statusCode, r.StatusCode)
 
 			time.Sleep(time.Second * 1)
@@ -607,6 +609,8 @@ func testAPIDelete(t *testing.T, srv *httptest.Server, dbName string) {
 			}
 
 			r, err = client.Do(request)
+			require.NoError(t, err)
+			err = r.Body.Close()
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusGone, r.StatusCode)
 

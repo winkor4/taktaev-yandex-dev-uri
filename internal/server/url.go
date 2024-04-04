@@ -182,7 +182,8 @@ func deleteURL(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.Header.Get("Authorization")
 		if user == "" {
-			http.Error(w, "unauthorized user", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusAccepted)
+			return
 		}
 
 		body, err := io.ReadAll(r.Body)
