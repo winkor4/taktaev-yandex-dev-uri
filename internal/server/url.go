@@ -226,10 +226,7 @@ func putDelURL(s *Server, data delURL) {
 }
 
 func delWorker(s *Server) {
-	for {
-		select {
-		case data := <-s.deleteCh:
-			s.urlRepo.DeleteURL(data.user, data.keys)
-		}
+	for data := range s.deleteCh {
+		s.urlRepo.DeleteURL(data.user, data.keys)
 	}
 }
