@@ -13,15 +13,16 @@ import (
 )
 
 type Config struct {
-	URLRepo    model.URLRepository
-	Cfg        *config.Config
-	Logger     *log.Logger
+	URLRepo model.URLRepository
+	Cfg     *config.Config
+	Logger  *log.Logger
 }
 
 type Server struct {
-	urlRepo    model.URLRepository
-	cfg        *config.Config
-	logger     *log.Logger
+	urlRepo model.URLRepository
+	cfg     *config.Config
+	logger  *log.Logger
+	user    string
 }
 
 func New(c Config) *Server {
@@ -39,9 +40,9 @@ func (s *Server) Run() error {
 
 func SrvRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(authorizationHandler, gzipHandler, logHandler(s))
+	r.Use(authorizationMiddleware(s), gzipMiddleware, logMiddleware(s))
 
-	r.Post("/", checkContentTypeHandler(shortURL(s), "text/plain"))
+	r.Post("/", checkContentTypeMiddleware(shortURL(s), "text/plain"))
 	r.Get("/{id}", getURL(s))
 	r.Get("/ping", pingDB(s))
 	r.Mount("/api", apiRouter(s))
@@ -52,25 +53,25 @@ func SrvRouter(s *Server) *chi.Mux {
 func apiRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Mount("/shorten", apiShortenRouter(s))
-	r.Mount("/user", apiUserRputer(s))
+	r.Mount("/user", apiUserRouter(s))
 	return r
 }
 
 func apiShortenRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
-	r.Post("/", checkContentTypeHandler(shortURL(s), "application/json"))
-	r.Post("/batch", checkContentTypeHandler(shortBatch(s), "application/json"))
+	r.Post("/", checkContentTypeMiddleware(shortURL(s), "application/json"))
+	r.Post("/batch", checkContentTypeMiddleware(shortBatch(s), "application/json"))
 	return r
 }
 
-func apiUserRputer(s *Server) *chi.Mux {
+func apiUserRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Get("/urls", getUsersURL(s))
-	r.Delete("/urls", checkContentTypeHandler(deleteURL(s), "application/json"))
+	r.Delete("/urls", checkContentTypeMiddleware(deleteURL(s), "application/json"))
 	return r
 }
 
-func checkContentTypeHandler(h http.HandlerFunc, exContentType string) http.HandlerFunc {
+func checkContentTypeMiddleware(h http.HandlerFunc, exContentType string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		contentType := r.Header.Get("Content-Type")
 		if strings.Contains(contentType, "application/x-gzip") {
@@ -87,15 +88,44 @@ func checkContentTypeHandler(h http.HandlerFunc, exContentType string) http.Hand
 	}
 }
 
-func authorizationHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func authorizationMiddleware(s *Server) func(h http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		user := r.Header.Get("Authorization")
-		if user == "" {
-			user = uuid.New().String()
-		}
-		w.Header().Add("Authorization", user)
+			user, err := parseUser(r, true)
+			if err != nil {
+				http.Error(w, "can't get cookie", http.StatusBadRequest)
+			}
 
-		h.ServeHTTP(w, r)
-	})
+			http.SetCookie(w, &http.Cookie{
+				Name:  "auth_token",
+				Value: user,
+			})
+
+			s.user = user
+
+			h.ServeHTTP(w, r)
+		})
+	}
+}
+
+func parseUser(r *http.Request, createNew bool) (string, error) {
+
+	var user string
+
+	auth, err := r.Cookie("auth_token")
+	if err != nil && err != http.ErrNoCookie {
+		return "", err
+	}
+
+	switch {
+	case err == http.ErrNoCookie && createNew:
+		user = uuid.New().String()
+	case err == http.ErrNoCookie && !createNew:
+		return "", err
+	default:
+		user = auth.Value
+	}
+
+	return user, nil
 }

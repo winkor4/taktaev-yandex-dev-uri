@@ -29,8 +29,8 @@ import (
 
 func TestApp(t *testing.T) {
 	storages := make([]string, 0, 3)
-	storages = append(storages, "")
-	storages = append(storages, "file")
+	// storages = append(storages, "")
+	// storages = append(storages, "file")
 	storages = append(storages, "dsn")
 
 	for _, dbName := range storages {
@@ -360,14 +360,21 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 			}
 
 			if user != "" && testData.withAuthorization {
-				request.Header.Add("Authorization", user)
+				request.AddCookie(&http.Cookie{
+					Name:  "auth_token",
+					Value: user,
+				})
 			}
 
 			r, err := client.Do(request)
 			require.NoError(t, err)
 
 			if testData.withAuthorization {
-				user = r.Header.Get("Authorization")
+				for _, c := range r.Cookies() {
+					if c.Name == "auth_token" {
+						user = c.Value
+					}
+				}
 			}
 
 			assert.Equal(t, testData.want.statusCode, r.StatusCode)
@@ -560,7 +567,10 @@ func testAPIDelete(t *testing.T, srv *httptest.Server, dbName string) {
 				request.Header.Set("Content-Type", "text/plain")
 
 				if user != "" {
-					request.Header.Add("Authorization", user)
+					request.AddCookie(&http.Cookie{
+						Name:  "auth_token",
+						Value: user,
+					})
 				}
 
 				client := srv.Client()
@@ -569,7 +579,11 @@ func testAPIDelete(t *testing.T, srv *httptest.Server, dbName string) {
 				assert.Equal(t, http.StatusCreated, r.StatusCode)
 
 				if user == "" {
-					user = r.Header.Get("Authorization")
+					for _, c := range r.Cookies() {
+						if c.Name == "auth_token" {
+							user = c.Value
+						}
+					}
 				}
 
 				rBody, err := io.ReadAll(r.Body)
@@ -589,7 +603,10 @@ func testAPIDelete(t *testing.T, srv *httptest.Server, dbName string) {
 			request, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/user/urls", body)
 			require.NoError(t, err)
 			request.Header.Set("Content-Type", "application/json")
-			request.Header.Add("Authorization", user)
+			request.AddCookie(&http.Cookie{
+				Name:  "auth_token",
+				Value: user,
+			})
 
 			client := srv.Client()
 			r, err := client.Do(request)

@@ -23,7 +23,8 @@ func shortURL(s *Server) http.HandlerFunc {
 		}
 
 		contentType := r.Header.Get("Content-Type")
-		user := w.Header().Get("Authorization")
+
+		user := s.user
 
 		var ourl string
 		switch {
@@ -117,7 +118,7 @@ func shortBatch(s *Server) http.HandlerFunc {
 			return
 		}
 
-		user := w.Header().Get("Authorization")
+		user := s.user
 
 		urls := make([]model.URL, 0)
 		if err := json.Unmarshal(body, &urls); err != nil {
@@ -151,9 +152,16 @@ func shortBatch(s *Server) http.HandlerFunc {
 
 func getUsersURL(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user := r.Header.Get("Authorization")
-		if user == "" {
-			http.Error(w, "unauthorized user", http.StatusUnauthorized)
+
+		var user string
+		user, err := parseUser(r, false)
+		if err != nil {
+			if err == http.ErrNoCookie {
+				http.Error(w, "unauthorized user", http.StatusUnauthorized)
+				return
+			}
+			http.Error(w, "can't parse cookie", http.StatusBadRequest)
+			return
 		}
 
 		urls, err := s.urlRepo.GetUsersURL(user)
@@ -180,8 +188,18 @@ func getUsersURL(s *Server) http.HandlerFunc {
 
 func deleteURL(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user := r.Header.Get("Authorization")
-		
+
+		var user string
+		user, err := parseUser(r, false)
+		if err != nil {
+			if err == http.ErrNoCookie {
+				http.Error(w, "unauthorized user", http.StatusUnauthorized)
+				return
+			}
+			http.Error(w, "can't parse cookie", http.StatusBadRequest)
+			return
+		}
+
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Can't read body", http.StatusBadRequest)
