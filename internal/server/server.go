@@ -18,24 +18,37 @@ type Config struct {
 	Logger  *log.Logger
 }
 
+type delURL struct {
+	user string
+	keys []string
+}
+
 type Server struct {
-	urlRepo model.URLRepository
-	cfg     *config.Config
-	logger  *log.Logger
-	user    string
+	urlRepo  model.URLRepository
+	cfg      *config.Config
+	logger   *log.Logger
+	user     string
+	deleteCh chan delURL
 }
 
 func New(c Config) *Server {
+	deleteCh := make(chan delURL)
 	return &Server{
-		urlRepo: c.URLRepo,
-		cfg:     c.Cfg,
-		logger:  c.Logger,
+		urlRepo:  c.URLRepo,
+		cfg:      c.Cfg,
+		logger:   c.Logger,
+		deleteCh: deleteCh,
 	}
 }
 
 func (s *Server) Run() error {
+	go s.Workers()
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
 	return http.ListenAndServe(s.cfg.SrvAdr, SrvRouter(s))
+}
+
+func (s *Server) Workers() {
+	go delWorker(s)
 }
 
 func SrvRouter(s *Server) *chi.Mux {

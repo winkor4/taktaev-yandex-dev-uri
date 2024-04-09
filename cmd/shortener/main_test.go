@@ -82,6 +82,7 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 		Logger:  logger,
 	})
 
+	srv.Workers()
 	return httptest.NewServer(server.SrvRouter(srv))
 }
 

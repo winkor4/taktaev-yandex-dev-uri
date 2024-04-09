@@ -212,20 +212,24 @@ func deleteURL(s *Server) http.HandlerFunc {
 			return
 		}
 
-		deleteChan := make(chan []string)
-
-		go func(deleteChan chan<- []string, keys []string) {
-			defer close(deleteChan)
-			deleteChan <- keys
-		}(deleteChan, keys)
-
-		go urlRemover(s, user, deleteChan)
+		var data delURL
+		data.user = user
+		data.keys = keys
+		go putDelURL(s, data)
 
 		w.WriteHeader(http.StatusAccepted)
 	}
 }
 
-func urlRemover(s *Server, user string, ch <-chan []string) {
-	keys := <-ch
-	s.urlRepo.DeleteURL(user, keys)
+func putDelURL(s *Server, data delURL) {
+	s.deleteCh <- data
+}
+
+func delWorker(s *Server) {
+	for {
+		select {
+		case data := <-s.deleteCh:
+			s.urlRepo.DeleteURL(data.user, data.keys)
+		}
+	}
 }
