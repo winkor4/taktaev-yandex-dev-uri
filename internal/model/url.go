@@ -4,12 +4,17 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 )
+
+var ErrIsDeleted = errors.New("url is deleted")
 
 type URLRepository interface {
 	GetURL(key string) (*URL, error)
 	SaveURL(urls []URL) error
 	PingDB(ctx context.Context) error
+	GetUsersURL(user string) ([]KeyAndOURL, error)
+	DeleteURL(user string, keys []string)
 }
 
 type URL struct {
@@ -17,6 +22,12 @@ type URL struct {
 	Key           string
 	CorrelationID string `json:"correlation_id"`
 	Conflict      bool
+	UserID        string
+}
+
+type KeyAndOURL struct {
+	Key         string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
 
 func ShortKey(ourl string) string {

@@ -24,6 +24,8 @@ func shortURL(s *Server) http.HandlerFunc {
 
 		contentType := r.Header.Get("Content-Type")
 
+		user := s.user
+
 		var ourl string
 		switch {
 		case strings.Contains(contentType, "application/json"):
@@ -47,6 +49,7 @@ func shortURL(s *Server) http.HandlerFunc {
 		urls := make([]model.URL, 1)
 		urls[0].Key = model.ShortKey(ourl)
 		urls[0].OriginalURL = ourl
+		urls[0].UserID = user
 
 		err = s.urlRepo.SaveURL(urls)
 		if err != nil {
@@ -85,6 +88,10 @@ func getURL(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := chi.URLParam(r, "id")
 		url, err := s.urlRepo.GetURL(key)
+		if err == model.ErrIsDeleted {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		if err != nil {
 			http.Error(w, "Not found", http.StatusBadRequest)
 		}
@@ -111,6 +118,8 @@ func shortBatch(s *Server) http.HandlerFunc {
 			return
 		}
 
+		user := s.user
+
 		urls := make([]model.URL, 0)
 		if err := json.Unmarshal(body, &urls); err != nil {
 			http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
@@ -120,6 +129,7 @@ func shortBatch(s *Server) http.HandlerFunc {
 		data := make([]batchResponseSchema, 0, len(urls))
 		for i, url := range urls {
 			urls[i].Key = model.ShortKey(url.OriginalURL)
+			urls[i].UserID = user
 			data = append(data, batchResponseSchema{
 				CorrelationID: url.CorrelationID,
 				ShortURL:      fmt.Sprintf(s.cfg.ResSrvAdr+"/%s", urls[i].Key),
@@ -137,5 +147,86 @@ func shortBatch(s *Server) http.HandlerFunc {
 			http.Error(w, "Can't encode response", http.StatusInternalServerError)
 			return
 		}
+	}
+}
+
+func getUsersURL(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var user string
+		user, err := parseUser(r, false)
+		if err != nil {
+			if err == http.ErrNoCookie {
+				http.Error(w, "unauthorized user", http.StatusUnauthorized)
+				return
+			}
+			http.Error(w, "can't parse cookie", http.StatusBadRequest)
+			return
+		}
+
+		urls, err := s.urlRepo.GetUsersURL(user)
+		if err != nil {
+			http.Error(w, "can't get user's urls", http.StatusInternalServerError)
+			return
+		}
+		if len(urls) == 0 {
+			http.Error(w, "no content", http.StatusNoContent)
+		}
+
+		for i := range urls {
+			urls[i].Key = fmt.Sprintf(s.cfg.ResSrvAdr+"/%s", urls[i].Key)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(urls); err != nil {
+			http.Error(w, "Can't encode response", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func deleteURL(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var user string
+		user, err := parseUser(r, false)
+		if err != nil {
+			if err == http.ErrNoCookie {
+				http.Error(w, "unauthorized user", http.StatusUnauthorized)
+				return
+			}
+			http.Error(w, "can't parse cookie", http.StatusBadRequest)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Can't read body", http.StatusBadRequest)
+			return
+		}
+
+		keys := make([]string, 0)
+		if err := json.Unmarshal(body, &keys); err != nil {
+			http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
+			return
+		}
+
+		var data delURL
+		data.user = user
+		data.keys = keys
+		go putDelURL(s, data)
+
+		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+func putDelURL(s *Server, data delURL) {
+	s.deleteCh <- data
+}
+
+func delWorker(s *Server) {
+	for data := range s.deleteCh {
+		s.urlRepo.DeleteURL(data.user, data.keys)
 	}
 }

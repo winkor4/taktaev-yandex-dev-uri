@@ -34,7 +34,7 @@ func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
 	return lw
 }
 
-func logHandler(s *Server) func(h http.Handler) http.Handler {
+func logMiddleware(s *Server) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()

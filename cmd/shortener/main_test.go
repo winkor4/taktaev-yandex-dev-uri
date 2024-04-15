@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/adapter/file"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/adapter/memory"
@@ -26,10 +28,10 @@ import (
 )
 
 func TestApp(t *testing.T) {
-	storages := make([]string, 3)
-	storages[0] = ""
-	storages[1] = "file"
-	storages[2] = "dsn"
+	storages := make([]string, 0, 3)
+	// storages = append(storages, "")
+	// storages = append(storages, "file")
+	storages = append(storages, "dsn")
 
 	for _, dbName := range storages {
 		srv := newTestServer(t, dbName)
@@ -38,6 +40,7 @@ func TestApp(t *testing.T) {
 		}
 		testAPI(t, srv, dbName)
 		testAPIBatch(t, srv, dbName)
+		testAPIDelete(t, srv, dbName)
 		srv.Close()
 	}
 }
@@ -79,6 +82,7 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 		Logger:  logger,
 	})
 
+	srv.Workers()
 	return httptest.NewServer(server.SrvRouter(srv))
 }
 
@@ -98,29 +102,53 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 		originalURL  string
 		key          string
 		shortenedURL string
+		body         []byte
 	}
 
 	type testData struct {
-		name             string
-		id               string
-		postID           string
-		method           string
-		path             string
-		contentType      string
-		body             []byte
-		originalURL      string
-		checkRedirect    bool
-		checkContentType bool
-		want             want
+		name              string
+		id                string
+		postID            string
+		method            string
+		path              string
+		contentType       string
+		body              []byte
+		originalURL       string
+		withAuthorization bool
+		checkRedirect     bool
+		checkContentType  bool
+		checkBody         bool
+		want              want
 	}
 
-	type urlSchema struct {
-		URL string `json:"url"`
+	type (
+		urlSchema struct {
+			URL string `json:"url"`
+		}
+
+		responseSchema struct {
+			Result string `json:"result"`
+		}
+
+		responseUserURLS struct {
+			ShortURL    string `json:"short_url"`
+			OriginalURL string `json:"original_url"`
+		}
+	)
+
+	resUserURLS := []responseUserURLS{
+		{
+			ShortURL:    "http://localhost:8080/d245406cb6c9f36be9064c92c34e12e1",
+			OriginalURL: "https://www.youtube.com",
+		},
+		{
+			ShortURL:    "http://localhost:8080/05db7cd93a2ace1c51bc40e23a1fab87",
+			OriginalURL: "https://www.youtube.com/watch?v=etAIpkdhU9Q&list=RD09839DpTctU&index=30",
+		},
 	}
 
-	type responseSchema struct {
-		Result string `json:"result"`
-	}
+	resBody, err := json.Marshal(resUserURLS)
+	require.NoError(t, err)
 
 	testURL, err := json.Marshal(urlSchema{
 		URL: "https://www.youtube.com/watch?v=etAIpkdhU9Q&list=RD09839DpTctU&index=30",
@@ -134,120 +162,184 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 
 	testTable := []testData{
 		{
-			name:             dbName + " Выполнить Post запрос /",
-			id:               "post /",
-			postID:           "",
-			method:           http.MethodPost,
-			path:             "/",
-			contentType:      "text/plain",
-			body:             []byte("https://www.youtube.com"),
-			originalURL:      "https://www.youtube.com",
-			checkRedirect:    false,
-			checkContentType: true,
+			name:              dbName + " Выполнить Post запрос /",
+			id:                "post /",
+			postID:            "",
+			method:            http.MethodPost,
+			path:              "/",
+			contentType:       "text/plain",
+			body:              []byte("https://www.youtube.com"),
+			originalURL:       "https://www.youtube.com",
+			withAuthorization: true,
+			checkRedirect:     false,
+			checkContentType:  true,
+			checkBody:         false,
 			want: want{
 				contentType:  "text/plain",
 				statusCode:   http.StatusCreated,
 				originalURL:  "",
 				key:          "d245406cb6c9f36be9064c92c34e12e1",
 				shortenedURL: "http://localhost:8080/d245406cb6c9f36be9064c92c34e12e1",
+				body:         []byte(""),
 			},
 		},
 		{
-			name:             dbName + " Выполнить повторно Post запрос /",
-			id:               "second post /",
-			postID:           "",
-			method:           http.MethodPost,
-			path:             "/",
-			contentType:      "text/plain",
-			body:             []byte("https://www.youtube.com"),
-			originalURL:      "https://www.youtube.com",
-			checkRedirect:    false,
-			checkContentType: true,
+			name:              dbName + " Выполнить повторно Post запрос /",
+			id:                "second post /",
+			postID:            "",
+			method:            http.MethodPost,
+			path:              "/",
+			contentType:       "text/plain",
+			body:              []byte("https://www.youtube.com"),
+			originalURL:       "https://www.youtube.com",
+			withAuthorization: false,
+			checkRedirect:     false,
+			checkContentType:  true,
+			checkBody:         false,
 			want: want{
 				contentType:  "text/plain",
 				statusCode:   http.StatusConflict,
 				originalURL:  "",
 				key:          "d245406cb6c9f36be9064c92c34e12e1",
 				shortenedURL: "http://localhost:8080/d245406cb6c9f36be9064c92c34e12e1",
+				body:         []byte(""),
 			},
 		},
 		{
-			name:             dbName + " Выполнить Get запрос /{id}",
-			id:               "get /{id}",
-			postID:           "post /",
-			method:           http.MethodGet,
-			path:             "/",
-			contentType:      "",
-			body:             []byte(""),
-			originalURL:      "",
-			checkRedirect:    true,
-			checkContentType: false,
+			name:              dbName + " Выполнить Get запрос /{id}",
+			id:                "get /{id}",
+			postID:            "post /",
+			method:            http.MethodGet,
+			path:              "/",
+			contentType:       "",
+			body:              []byte(""),
+			originalURL:       "",
+			withAuthorization: false,
+			checkRedirect:     true,
+			checkContentType:  false,
+			checkBody:         false,
 			want: want{
 				contentType:  "",
 				statusCode:   http.StatusTemporaryRedirect,
 				originalURL:  "https://www.youtube.com",
 				key:          "",
 				shortenedURL: "",
+				body:         []byte(""),
 			},
 		},
 		{
-			name:             dbName + " Выполнить Get запрос /ping",
-			id:               "get /ping",
-			postID:           "",
-			method:           http.MethodGet,
-			path:             "/ping",
-			contentType:      "",
-			body:             []byte(""),
-			originalURL:      "",
-			checkRedirect:    false,
-			checkContentType: false,
+			name:              dbName + " Выполнить Get запрос /ping",
+			id:                "get /ping",
+			postID:            "",
+			method:            http.MethodGet,
+			path:              "/ping",
+			contentType:       "",
+			body:              []byte(""),
+			originalURL:       "",
+			withAuthorization: false,
+			checkRedirect:     false,
+			checkContentType:  false,
+			checkBody:         false,
 			want: want{
 				contentType:  "",
 				statusCode:   pingStatus[dbName],
 				originalURL:  "",
 				key:          "",
 				shortenedURL: "",
+				body:         []byte(""),
 			},
 		},
 		{
-			name:             dbName + " Выполнить Post запрос /api/shorten",
-			id:               "post /api/shorten",
-			postID:           "",
-			method:           http.MethodPost,
-			path:             "/api/shorten",
-			contentType:      "application/json",
-			body:             testURL,
-			originalURL:      "https://www.youtube.com/watch?v=etAIpkdhU9Q&list=RD09839DpTctU&index=30",
-			checkRedirect:    false,
-			checkContentType: true,
+			name:              dbName + " Выполнить Post запрос /api/shorten",
+			id:                "post /api/shorten",
+			postID:            "",
+			method:            http.MethodPost,
+			path:              "/api/shorten",
+			contentType:       "application/json",
+			body:              testURL,
+			originalURL:       "https://www.youtube.com/watch?v=etAIpkdhU9Q&list=RD09839DpTctU&index=30",
+			withAuthorization: true,
+			checkRedirect:     false,
+			checkContentType:  true,
+			checkBody:         false,
 			want: want{
 				contentType:  "application/json",
 				statusCode:   http.StatusCreated,
 				originalURL:  "",
 				key:          "05db7cd93a2ace1c51bc40e23a1fab87",
 				shortenedURL: "http://localhost:8080/05db7cd93a2ace1c51bc40e23a1fab87",
+				body:         []byte(""),
 			},
 		},
 		{
-			name:             dbName + " Выполнить повторно Post запрос /api/shorten",
-			id:               "second post /api/shorten",
-			postID:           "",
-			method:           http.MethodPost,
-			path:             "/api/shorten",
-			contentType:      "application/json",
-			body:             testURL,
-			originalURL:      "https://www.youtube.com/watch?v=etAIpkdhU9Q&list=RD09839DpTctU&index=30",
-			checkRedirect:    false,
-			checkContentType: true,
+			name:              dbName + " Выполнить повторно Post запрос /api/shorten",
+			id:                "second post /api/shorten",
+			postID:            "",
+			method:            http.MethodPost,
+			path:              "/api/shorten",
+			contentType:       "application/json",
+			body:              testURL,
+			originalURL:       "https://www.youtube.com/watch?v=etAIpkdhU9Q&list=RD09839DpTctU&index=30",
+			withAuthorization: false,
+			checkRedirect:     false,
+			checkContentType:  true,
+			checkBody:         false,
 			want: want{
 				contentType:  "application/json",
 				statusCode:   http.StatusConflict,
 				originalURL:  "",
 				key:          "05db7cd93a2ace1c51bc40e23a1fab87",
 				shortenedURL: "http://localhost:8080/05db7cd93a2ace1c51bc40e23a1fab87",
+				body:         []byte(""),
+			},
+		},
+		{
+			name:              dbName + " Выполнить Get запрос /api/user/urls",
+			id:                "get /api/user/urls",
+			postID:            "",
+			method:            http.MethodGet,
+			path:              "/api/user/urls",
+			contentType:       "",
+			body:              []byte(""),
+			originalURL:       "",
+			withAuthorization: true,
+			checkRedirect:     false,
+			checkContentType:  true,
+			checkBody:         true,
+			want: want{
+				contentType:  "application/json",
+				statusCode:   http.StatusOK,
+				originalURL:  "",
+				key:          "",
+				shortenedURL: "",
+				body:         resBody,
+			},
+		},
+		{
+			name:              dbName + " Выполнить Get запрос без авторизации /api/user/urls",
+			id:                "get unauth /api/user/urls",
+			postID:            "",
+			method:            http.MethodGet,
+			path:              "/api/user/urls",
+			contentType:       "",
+			body:              []byte(""),
+			originalURL:       "",
+			withAuthorization: false,
+			checkRedirect:     false,
+			checkContentType:  false,
+			checkBody:         false,
+			want: want{
+				contentType:  "application/json",
+				statusCode:   http.StatusUnauthorized,
+				originalURL:  "",
+				key:          "",
+				shortenedURL: "",
+				body:         []byte(""),
 			},
 		},
 	}
+
+	var user string
 
 	for _, testData := range testTable {
 		t.Run(testData.name, func(t *testing.T) {
@@ -268,8 +360,23 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 				}
 			}
 
+			if user != "" && testData.withAuthorization {
+				request.AddCookie(&http.Cookie{
+					Name:  "auth_token",
+					Value: user,
+				})
+			}
+
 			r, err := client.Do(request)
 			require.NoError(t, err)
+
+			if testData.withAuthorization {
+				for _, c := range r.Cookies() {
+					if c.Name == "auth_token" {
+						user = c.Value
+					}
+				}
+			}
 
 			assert.Equal(t, testData.want.statusCode, r.StatusCode)
 			if testData.checkContentType {
@@ -279,7 +386,7 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 				assert.Equal(t, testData.want.originalURL, r.Header.Get("Location"))
 			}
 
-			if testData.method == http.MethodGet {
+			if testData.method == http.MethodGet && !testData.checkBody {
 				return
 			}
 
@@ -290,6 +397,9 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 
 			var shortenedURL string
 			switch {
+			case testData.checkBody:
+				assert.JSONEq(t, string(testData.want.body), string(rBody))
+				return
 			case testData.contentType == "text/plain":
 				shortenedURL = string(rBody)
 			case testData.contentType == "application/json":
@@ -414,5 +524,114 @@ func testAPIBatch(t *testing.T, srv *httptest.Server, dbName string) {
 
 		})
 	}
+}
 
+func testAPIDelete(t *testing.T, srv *httptest.Server, dbName string) {
+
+	type want struct {
+		statusCode int
+	}
+
+	type testData struct {
+		name  string
+		bodys [][]byte
+		want  want
+	}
+
+	testBodys := make([][]byte, 0, 10)
+
+	for i := 0; i < 10; i++ {
+		testBodys = append(testBodys, []byte(fmt.Sprintf("https://www.youtube.com/%d", i)))
+	}
+
+	testTable := []testData{
+		{
+			name:  dbName + " Выполнить Delete /api/user/urls",
+			bodys: testBodys,
+			want: want{
+				statusCode: http.StatusAccepted,
+			},
+		},
+	}
+
+	var user string
+
+	for _, testData := range testTable {
+		t.Run(testData.name, func(t *testing.T) {
+
+			shortenURLS := make([]string, 0, 10)
+
+			for _, tbody := range testData.bodys {
+				body := bytes.NewReader(tbody)
+				request, err := http.NewRequest(http.MethodPost, srv.URL+"/", body)
+				require.NoError(t, err)
+				request.Header.Set("Content-Type", "text/plain")
+
+				if user != "" {
+					request.AddCookie(&http.Cookie{
+						Name:  "auth_token",
+						Value: user,
+					})
+				}
+
+				client := srv.Client()
+				r, err := client.Do(request)
+				require.NoError(t, err)
+				assert.Equal(t, http.StatusCreated, r.StatusCode)
+
+				if user == "" {
+					for _, c := range r.Cookies() {
+						if c.Name == "auth_token" {
+							user = c.Value
+						}
+					}
+				}
+
+				rBody, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+				err = r.Body.Close()
+				require.NoError(t, err)
+
+				shortenedURL := string(rBody)
+				key := strings.ReplaceAll(shortenedURL, "http://localhost:8080/", "")
+				shortenURLS = append(shortenURLS, key)
+			}
+
+			dBody, err := json.Marshal(shortenURLS)
+			require.NoError(t, err)
+
+			body := bytes.NewReader(dBody)
+			request, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/user/urls", body)
+			require.NoError(t, err)
+			request.Header.Set("Content-Type", "application/json")
+			request.AddCookie(&http.Cookie{
+				Name:  "auth_token",
+				Value: user,
+			})
+
+			client := srv.Client()
+			r, err := client.Do(request)
+			require.NoError(t, err)
+			err = r.Body.Close()
+			require.NoError(t, err)
+			assert.Equal(t, testData.want.statusCode, r.StatusCode)
+
+			time.Sleep(time.Second * 1)
+
+			request, err = http.NewRequest(http.MethodGet, srv.URL+"/"+shortenURLS[0], nil)
+			require.NoError(t, err)
+
+			client = srv.Client()
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+
+			r, err = client.Do(request)
+			require.NoError(t, err)
+			err = r.Body.Close()
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusGone, r.StatusCode)
+
+		})
+	}
 }

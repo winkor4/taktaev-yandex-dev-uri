@@ -3,6 +3,7 @@ package psql
 import (
 	"context"
 	"database/sql"
+
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
@@ -64,7 +65,9 @@ func (db *DB) Set(urls []model.URL) error {
 	for i, url := range urls {
 		result, err := tx.ExecContext(ctx, queryInsert,
 			url.OriginalURL,
-			url.Key)
+			url.Key,
+			url.UserID,
+			false)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -88,9 +91,13 @@ func (db *DB) Set(urls []model.URL) error {
 func (db *DB) Get(key string) (string, error) {
 	row := db.db.QueryRowContext(context.Background(), querySelectURL, key)
 	ourl := new(string)
-	err := row.Scan(ourl)
+	isDeleted := new(bool)
+	err := row.Scan(ourl, isDeleted)
 	if err != nil {
 		return "", err
+	}
+	if *isDeleted {
+		return "", model.ErrIsDeleted
 	}
 	return *ourl, nil
 }
@@ -113,4 +120,58 @@ func (db *DB) DeleteTable() error {
 	}
 
 	return nil
+}
+
+func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
+	rows, err := db.db.QueryContext(context.Background(), querySelectUsersURL, user)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls := make([]model.KeyAndOURL, 0)
+	for rows.Next() {
+		var url model.KeyAndOURL
+		err := rows.Scan(&url.OriginalURL, &url.Key)
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, url)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
+	return urls, nil
+}
+
+func (db *DB) UpdateDeleteFlag(user string, keys []string) {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return
+	}
+
+	ctx := context.Background()
+	for _, key := range keys {
+		var err error
+		switch {
+		case user != "":
+			_, err = tx.ExecContext(ctx, queryUpdateDeleteFlagUser,
+				key,
+				user)
+		default:
+			_, err = tx.ExecContext(ctx, queryUpdateDeleteFlag,
+				key)
+		}
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		return
+	}
 }
