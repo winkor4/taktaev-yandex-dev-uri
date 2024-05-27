@@ -54,7 +54,7 @@ func (s *Server) Workers() {
 
 func SrvRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(authorizationMiddleware(s) /*gzipMiddleware,*/, logMiddleware(s))
+	r.Use(authorizationMiddleware(s), gzipMiddleware, logMiddleware(s))
 
 	r.Post("/", checkContentTypeMiddleware(shortURL(s), "text/plain"))
 	r.Get("/{id}", getURL(s))
