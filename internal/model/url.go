@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
@@ -31,6 +32,11 @@ type KeyAndOURL struct {
 }
 
 func ShortKey(ourl string) string {
-	hash := md5.Sum([]byte(ourl))
+	var bb bytes.Buffer
+	bb.Grow(len(ourl))
+	bb.WriteString(ourl)
+
+	hash := md5.Sum(bb.Bytes())
+	// hash := md5.Sum([]byte(ourl))
 	return hex.EncodeToString(hash[:])
 }

@@ -25,15 +25,13 @@ var queryInsert = `INSERT INTO shorten_urls
 	)
 	ON CONFLICT (original_url) DO NOTHING;`
 
-var querySelectURL = 
-	`SELECT 
+var querySelectURL = `SELECT 
 		original_url,
 		is_deleted
 	FROM shorten_urls
 	WHERE short_key = $1`
 
-var querySelectUsersURL = 
-	`SELECT 
+var querySelectUsersURL = `SELECT 
 		original_url,
 		short_key
 	FROM shorten_urls
@@ -41,17 +39,15 @@ var querySelectUsersURL =
 		user_id = $1
 		AND not is_deleted`
 
-var queryUpdateDeleteFlagUser = 
-	`UPDATE shorten_urls
+var queryUpdateDeleteFlagUser = `UPDATE shorten_urls
 	SET
 		is_deleted = true
 	WHERE
 		short_key = $1
 		AND user_id = $2`
 
-var queryUpdateDeleteFlag = 
-	`UPDATE shorten_urls
+var queryUpdateDeleteFlag = `UPDATE shorten_urls
 	SET
 		is_deleted = true
 	WHERE
-		short_key = $1`		
+		short_key = $1`

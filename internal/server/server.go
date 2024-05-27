@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"net/http/pprof"
 	"strings"
 
 	"github.com/google/uuid"
@@ -53,12 +54,18 @@ func (s *Server) Workers() {
 
 func SrvRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(authorizationMiddleware(s), gzipMiddleware, logMiddleware(s))
+	r.Use(authorizationMiddleware(s) /*gzipMiddleware,*/, logMiddleware(s))
 
 	r.Post("/", checkContentTypeMiddleware(shortURL(s), "text/plain"))
 	r.Get("/{id}", getURL(s))
 	r.Get("/ping", pingDB(s))
 	r.Mount("/api", apiRouter(s))
+
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
 	return r
 }
