@@ -1,3 +1,4 @@
+// Модуль config парсит конфигурацию для сервера.
 package config
 
 import (
@@ -29,6 +30,7 @@ func stringVar(p *string, name string, value string, usage string) {
 	}
 }
 
+// Parse парсит флаги и параметры ОС.
 func Parse() (*Config, error) {
 
 	// dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
