@@ -1,3 +1,4 @@
+// Модуль memory описывает функции хранения данных через оперативную память.
 package memory
 
 import (
@@ -7,6 +8,7 @@ import (
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
+// DB - описание хранилища.
 type DB struct {
 	dbMap    map[string]memoryURL
 	usersMap map[string][]model.KeyAndOURL
@@ -19,6 +21,7 @@ type memoryURL struct {
 	IsDeleted   bool
 }
 
+// New возвращает новое хранилище (map).
 func New() *DB {
 	return &DB{
 		dbMap:    make(map[string]memoryURL),
@@ -26,6 +29,7 @@ func New() *DB {
 	}
 }
 
+// Get возвращает ссылку по ключу.
 func (db *DB) Get(key string) (string, error) {
 	ourl, ok := db.dbMap[key]
 	if !ok {
@@ -37,6 +41,7 @@ func (db *DB) Get(key string) (string, error) {
 	return ourl.OriginalURL, nil
 }
 
+// Set записывает ссылки в файл.
 func (db *DB) Set(url *model.URL) {
 	_, ok := db.dbMap[url.Key]
 	if ok {
@@ -61,15 +66,18 @@ func (db *DB) Set(url *model.URL) {
 	db.usersMap[url.UserID] = userURLS
 }
 
+// Close бланк для интерфейса.
 func (db *DB) Close() error {
 	return nil
 }
 
+// GetByUser возвращает все ссылки пользователя.
 func (db *DB) GetByUser(user string) []model.KeyAndOURL {
 	usersURLS := db.usersMap[user]
 	return usersURLS
 }
 
+// UpdateDeleteFlag удаляет ссылки.
 func (db *DB) UpdateDeleteFlag(user string, keys []string) {
 	userURLS, ok := db.usersMap[user]
 

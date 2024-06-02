@@ -1,3 +1,4 @@
+// storage возвращает интерфейс хранения данных на сервере.
 package storage
 
 import "github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"

@@ -1,3 +1,4 @@
+// Модуль memory описывает функции хранения данных через базу данных.
 package psql
 
 import (
@@ -7,10 +8,12 @@ import (
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
+// DB - описание БД-хранилища.
 type DB struct {
 	db *sql.DB
 }
 
+// New возвращает новый БД-хранилище.
 func New(dsn string) (*DB, error) {
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
@@ -44,10 +47,12 @@ func New(dsn string) (*DB, error) {
 	return &DB{db: db}, nil
 }
 
+// CloseDB закрывает соединение с БД.
 func (db *DB) CloseDB() error {
 	return db.db.Close()
 }
 
+// Ping проверяет соединение с БД.
 func (db *DB) Ping(ctx context.Context) error {
 	if err := db.db.PingContext(ctx); err != nil {
 		return err
@@ -55,6 +60,7 @@ func (db *DB) Ping(ctx context.Context) error {
 	return nil
 }
 
+// Set записывает ссылки в файл.
 func (db *DB) Set(urls []model.URL) error {
 	tx, err := db.db.Begin()
 	if err != nil {
@@ -88,6 +94,7 @@ func (db *DB) Set(urls []model.URL) error {
 	return nil
 }
 
+// Get возвращает ссылку по ключу.
 func (db *DB) Get(key string) (string, error) {
 	row := db.db.QueryRowContext(context.Background(), querySelectURL, key)
 	ourl := new(string)
@@ -102,6 +109,7 @@ func (db *DB) Get(key string) (string, error) {
 	return *ourl, nil
 }
 
+// DeleteTable очищает таблицу.
 func (db *DB) DeleteTable() error {
 
 	query := "DELETE FROM shorten_urls"
@@ -122,6 +130,7 @@ func (db *DB) DeleteTable() error {
 	return nil
 }
 
+// GetByUser возвращает все ссылки пользователя.
 func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
 	rows, err := db.db.QueryContext(context.Background(), querySelectUsersURL, user)
 	if err != nil {
@@ -146,6 +155,7 @@ func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
 	return urls, nil
 }
 
+// UpdateDeleteFlag удаляет ссылки.
 func (db *DB) UpdateDeleteFlag(user string, keys []string) {
 	tx, err := db.db.Begin()
 	if err != nil {
