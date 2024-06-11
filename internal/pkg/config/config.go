@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Config параметры конфигурации
 type Config struct {
 	SrvAdr          string `env:"SERVER_ADDRESS"`
 	ResSrvAdr       string `env:"BASE_URL"`

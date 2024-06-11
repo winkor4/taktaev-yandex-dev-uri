@@ -5,10 +5,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// Logger описывает структуру логера
 type Logger struct {
 	*zap.SugaredLogger
 }
 
+// New возвращает новый логер
 func New() (*Logger, error) {
 	zapLogger, err := zap.NewDevelopment()
 	if err != nil {
@@ -21,6 +23,7 @@ func New() (*Logger, error) {
 	return &Logger{SugaredLogger: zapLogger.Sugar()}, nil
 }
 
+// Close закрывает логер
 func (l *Logger) Close() error {
 	return l.Sync()
 }
