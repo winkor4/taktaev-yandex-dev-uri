@@ -80,6 +80,8 @@ func (c *checks) addQuickFix() {
 
 // addPublicAnalyzers добавляет публичные анализаторы
 //
+// errcheck проверяет чтобы все ошибки были получены и проверены
+//
 // Не пойму от куда брать дольше публичных анализаторов нужна помощь
 func (c *checks) addPublicAnalyzers() {
 	c.analyzers = append(c.analyzers, errcheck.Analyzer)
