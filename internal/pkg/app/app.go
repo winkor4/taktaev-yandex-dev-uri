@@ -25,13 +25,17 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-	defer close()
+	defer func() {
+		err = close()
+	}()
 
 	logger, err := log.New()
 	if err != nil {
 		return err
 	}
-	defer logger.Close()
+	defer func() {
+		err = logger.Close()
+	}()
 
 	srv := server.New(server.Config{
 		URLRepo: repo,

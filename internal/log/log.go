@@ -14,11 +14,13 @@ func New() (*Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer zapLogger.Sync()
+	defer func() {
+		_ = zapLogger.Sync()
+	}()
 
 	return &Logger{SugaredLogger: zapLogger.Sugar()}, nil
 }
 
 func (l *Logger) Close() error {
-	return l.SugaredLogger.Sync()
+	return l.Sync()
 }

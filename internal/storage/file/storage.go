@@ -107,7 +107,7 @@ func (db *DB) Set(urls []model.URL) error {
 			continue
 		}
 
-		fileURL := fileURL{
+		URL := fileURL{
 			UUID:        uuid,
 			ShortKey:    url.Key,
 			OriginalURL: url.OriginalURL,
@@ -115,11 +115,11 @@ func (db *DB) Set(urls []model.URL) error {
 			IsDeleted:   false,
 		}
 
-		err := json.NewEncoder(db.file).Encode(&fileURL)
+		err := json.NewEncoder(db.file).Encode(&URL)
 		if err != nil {
 			return err
 		}
-		db.data[fileURL.ShortKey] = fileURL
+		db.data[URL.ShortKey] = URL
 		uuid++
 
 		if url.UserID == "" {

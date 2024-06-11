@@ -35,12 +35,12 @@ func New(dsn string) (*DB, error) {
 	}
 	for _, migration := range migrations {
 		if _, err := tx.Exec(migration); err != nil {
-			tx.Rollback()
+			err = tx.Rollback()
 			return nil, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		tx.Rollback()
+		err = tx.Rollback()
 		return nil, err
 	}
 
@@ -75,19 +75,19 @@ func (db *DB) Set(urls []model.URL) error {
 			url.UserID,
 			false)
 		if err != nil {
-			tx.Rollback()
+			err = tx.Rollback()
 			return err
 		}
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
-			tx.Rollback()
+			err = tx.Rollback()
 			return err
 		}
 		urls[i].Conflict = rowsAffected == 0
 	}
 
 	if err := tx.Commit(); err != nil {
-		tx.Rollback()
+		err = tx.Rollback()
 		return err
 	}
 
@@ -119,11 +119,11 @@ func (db *DB) DeleteTable() error {
 		return err
 	}
 	if _, err := tx.Exec(query); err != nil {
-		tx.Rollback()
+		err = tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {
-		tx.Rollback()
+		err = tx.Rollback()
 		return err
 	}
 
@@ -136,7 +136,7 @@ func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	urls := make([]model.KeyAndOURL, 0)
 	for rows.Next() {
@@ -175,13 +175,13 @@ func (db *DB) UpdateDeleteFlag(user string, keys []string) {
 				key)
 		}
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return
 	}
 }

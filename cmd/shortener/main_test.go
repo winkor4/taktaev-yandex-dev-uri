@@ -27,10 +27,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// go test -coverprofile coverage.out ./... -coverpkg ./...
 func TestApp(t *testing.T) {
 	storages := make([]string, 0, 3)
-	// storages = append(storages, "")
-	// storages = append(storages, "file")
+	storages = append(storages, "")
+	storages = append(storages, "file")
 	storages = append(storages, "dsn")
 
 	for _, dbName := range storages {
@@ -51,8 +52,8 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 
 	var repo storage.Repository
 
-	switch {
-	case dbName == "dsn":
+	switch dbName {
+	case "dsn":
 		if cfg.DSN == "" {
 			return nil
 		}
@@ -62,8 +63,8 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 		err = sqlRepo.DeleteTable()
 		require.NoError(t, err)
 		repo = sqlRepo
-	case dbName == "file":
-		err := os.Remove("tmp/short-url-db-test.json")
+	case "file":
+		err = os.Remove("tmp/short-url-db-test.json")
 		require.NoError(t, err)
 		db, err := sfile.New("tmp/short-url-db-test.json")
 		require.NoError(t, err)
