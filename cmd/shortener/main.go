@@ -1,13 +1,5 @@
 package main
 
-// var buildVersion string
-// var buildDate string
-// var buildCommit string
-
-// Build version: <buildVersion> (или "N/A" при отсутствии значения)
-// Build date: <buildDate> (или "N/A" при отсутствии значения)
-// Build commit: <buildCommit> (или "N/A" при отсутствии значения)
-
 import (
 	"fmt"
 	"log"

@@ -136,7 +136,7 @@ func (db *DB) GetByUser(user string) ([]model.KeyAndOURL, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() { err = rows.Close() }()
 
 	urls := make([]model.KeyAndOURL, 0)
 	for rows.Next() {
