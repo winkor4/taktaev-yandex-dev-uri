@@ -1,7 +1,9 @@
+// Функции создания и запуска сервера.
 package server
 
 import (
 	"net/http"
+	"net/http/pprof"
 	"strings"
 
 	"github.com/google/uuid"
@@ -12,10 +14,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// Config хранит параметры для создания нового сервера.
 type Config struct {
-	URLRepo model.URLRepository
-	Cfg     *config.Config
-	Logger  *log.Logger
+	URLRepo model.URLRepository // URLRepo - интерфейс хранилища.
+	Cfg     *config.Config      // Cfg - параметры создания сервера.
+	Logger  *log.Logger         // Logger - логгер сервера.
 }
 
 type delURL struct {
@@ -23,6 +26,7 @@ type delURL struct {
 	keys []string
 }
 
+// Server содержит данные для запуска и работы сервера.
 type Server struct {
 	urlRepo  model.URLRepository
 	cfg      *config.Config
@@ -31,6 +35,7 @@ type Server struct {
 	deleteCh chan delURL
 }
 
+// New создает и возвращает новый сервер.
 func New(c Config) *Server {
 	deleteCh := make(chan delURL)
 	return &Server{
@@ -41,16 +46,19 @@ func New(c Config) *Server {
 	}
 }
 
+// Run запускает сервер.
 func (s *Server) Run() error {
 	go s.Workers()
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
 	return http.ListenAndServe(s.cfg.SrvAdr, SrvRouter(s))
 }
 
+// Workers запускает фоновые обработчики.
 func (s *Server) Workers() {
 	go delWorker(s)
 }
 
+// SrvRouter возвращает описание (handler) сервера для запуска
 func SrvRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(authorizationMiddleware(s), gzipMiddleware, logMiddleware(s))
@@ -59,6 +67,12 @@ func SrvRouter(s *Server) *chi.Mux {
 	r.Get("/{id}", getURL(s))
 	r.Get("/ping", pingDB(s))
 	r.Mount("/api", apiRouter(s))
+
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
 	return r
 }

@@ -1,3 +1,4 @@
+// Модуль config парсит конфигурацию для сервера.
 package config
 
 import (
@@ -7,6 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Config параметры конфигурации
 type Config struct {
 	SrvAdr          string `env:"SERVER_ADDRESS"`
 	ResSrvAdr       string `env:"BASE_URL"`
@@ -29,6 +31,7 @@ func stringVar(p *string, name string, value string, usage string) {
 	}
 }
 
+// Parse парсит флаги и параметры ОС.
 func Parse() (*Config, error) {
 
 	// dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",

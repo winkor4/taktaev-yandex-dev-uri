@@ -30,7 +30,7 @@ func shortURL(s *Server) http.HandlerFunc {
 		switch {
 		case strings.Contains(contentType, "application/json"):
 			var schema urlSchema
-			if err := json.Unmarshal(body, &schema); err != nil {
+			if err = json.Unmarshal(body, &schema); err != nil {
 				http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
 				return
 			}
@@ -65,15 +65,15 @@ func shortURL(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusCreated)
 		}
 
-		switch {
-		case contentType == "application/json":
+		switch contentType {
+		case "application/json":
 			var resSchema responseSchema
 			resSchema.Result = result
-			if err := json.NewEncoder(w).Encode(resSchema); err != nil {
+			if err = json.NewEncoder(w).Encode(resSchema); err != nil {
 				http.Error(w, "Can't encode response", http.StatusInternalServerError)
 				return
 			}
-		case contentType == "text/plain":
+		case "text/plain":
 			data := []byte(result)
 			_, err = w.Write(data)
 			if err != nil {
@@ -121,7 +121,7 @@ func shortBatch(s *Server) http.HandlerFunc {
 		user := s.user
 
 		urls := make([]model.URL, 0)
-		if err := json.Unmarshal(body, &urls); err != nil {
+		if err = json.Unmarshal(body, &urls); err != nil {
 			http.Error(w, "Can't unmarshal body", http.StatusBadRequest)
 			return
 		}

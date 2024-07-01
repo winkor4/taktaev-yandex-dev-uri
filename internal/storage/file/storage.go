@@ -1,3 +1,4 @@
+// Модуль file описывает функции хранения данных через файл.
 package file
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 )
 
+// DB - описание файла-хранилища.
 type DB struct {
 	file     *os.File
 	data     map[string]fileURL
@@ -24,6 +26,7 @@ type fileURL struct {
 	IsDeleted   bool   `json:"is_deleted"`
 }
 
+// New возвращает новый файл-хранилище.
 func New(fname string) (*DB, error) {
 	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -41,6 +44,7 @@ func New(fname string) (*DB, error) {
 	return out, nil
 }
 
+// CloseFile закрывет файл.
 func (db *DB) CloseFile() error {
 	return db.file.Close()
 }
@@ -79,6 +83,7 @@ func readStorageFile(db *DB, fname string) error {
 	return nil
 }
 
+// Get возвращает ссылку по ключу.
 func (db *DB) Get(key string) (string, error) {
 	fileData, ok := db.data[key]
 	if !ok {
@@ -90,6 +95,7 @@ func (db *DB) Get(key string) (string, error) {
 	return fileData.OriginalURL, nil
 }
 
+// Set записывает ссылки в файл.
 func (db *DB) Set(urls []model.URL) error {
 
 	uuid := len(db.data) + 1
@@ -101,7 +107,7 @@ func (db *DB) Set(urls []model.URL) error {
 			continue
 		}
 
-		fileURL := fileURL{
+		URL := fileURL{
 			UUID:        uuid,
 			ShortKey:    url.Key,
 			OriginalURL: url.OriginalURL,
@@ -109,11 +115,11 @@ func (db *DB) Set(urls []model.URL) error {
 			IsDeleted:   false,
 		}
 
-		err := json.NewEncoder(db.file).Encode(&fileURL)
+		err := json.NewEncoder(db.file).Encode(&URL)
 		if err != nil {
 			return err
 		}
-		db.data[fileURL.ShortKey] = fileURL
+		db.data[URL.ShortKey] = URL
 		uuid++
 
 		if url.UserID == "" {
@@ -130,11 +136,13 @@ func (db *DB) Set(urls []model.URL) error {
 	return nil
 }
 
+// GetByUser возвращает все ссылки пользователя.
 func (db *DB) GetByUser(user string) []model.KeyAndOURL {
 	usersURLS := db.usersMap[user]
 	return usersURLS
 }
 
+// UpdateDeleteFlag удаляет ссылки.
 func (db *DB) UpdateDeleteFlag(user string, keys []string) {
 	userURLS, ok := db.usersMap[user]
 

@@ -1,3 +1,4 @@
+// Модуль app инициализирует запуск сервера с параметрами.
 package app
 
 import (
@@ -13,6 +14,7 @@ import (
 	spsql "github.com/winkor4/taktaev-yandex-dev-uri.git/internal/storage/psql"
 )
 
+// Run читает конфигурацию сервера и запускает его.
 func Run() error {
 	cfg, err := config.Parse()
 	if err != nil {
@@ -23,18 +25,22 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-	defer close()
+	defer func() {
+		err = close()
+	}()
 
 	logger, err := log.New()
 	if err != nil {
 		return err
 	}
-	defer logger.Close()
+	defer func() {
+		err = logger.Close()
+	}()
 
 	srv := server.New(server.Config{
-		URLRepo:    repo,
-		Cfg:        cfg,
-		Logger:     logger,
+		URLRepo: repo,
+		Cfg:     cfg,
+		Logger:  logger,
 	})
 
 	return srv.Run()
