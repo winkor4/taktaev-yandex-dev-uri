@@ -83,9 +83,6 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 		Logger:  logger,
 	})
 
-	// sigs := make(chan os.Signal, 1)
-	// signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-
 	srv.Workers()
 
 	return httptest.NewServer(server.SrvRouter(srv))
