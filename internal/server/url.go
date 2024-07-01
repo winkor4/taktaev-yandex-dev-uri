@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
@@ -226,20 +227,20 @@ func putDelURL(s *Server, data delURL) {
 }
 
 func delWorker(s *Server) {
-	// var shutdown bool
-
-	// for !shutdown {
-	// 	select {
-	// 	case <-sigs:
-	// 		shutdown = true
-	// 	case data := <-s.deleteCh:
-	// 		s.urlRepo.DeleteURL(data.user, data.keys)
-	// 	default:
-	// 	}
-	// }
-
 	for data := range s.deleteCh {
 		s.urlRepo.DeleteURL(data.user, data.keys)
 	}
+}
 
+func shutdownWorker(s *Server, sigs chan os.Signal) {
+	var shutdown bool
+
+	for !shutdown {
+		select {
+		case <-sigs:
+			shutdown = true
+			close(s.deleteCh)
+		default:
+		}
+	}
 }
