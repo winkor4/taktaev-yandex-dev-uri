@@ -14,6 +14,7 @@ type Config struct {
 	ResSrvAdr       string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DSN             string `env:"DATABASE_DSN"`
+	EnableHTTPS     string `env:"ENABLE_HTTPS"`
 	LogLevel        zapcore.Level
 }
 
@@ -22,6 +23,7 @@ var (
 	flagResSrvAdr       string
 	flagFileStoragePath string
 	flagDSN             string
+	flagEnableHTTPS     string
 	flagLogLevel        string
 )
 
@@ -43,6 +45,7 @@ func Parse() (*Config, error) {
 	stringVar(&flagResSrvAdr, "b", "http://localhost:8080", "address and port to run server")
 	stringVar(&flagFileStoragePath, "f", "", "file storage path")
 	stringVar(&flagDSN, "d", "", "PostgresSQL path")
+	stringVar(&flagEnableHTTPS, "s", "", "возможность включения HTTPS в веб-сервере")
 	stringVar(&flagLogLevel, "l", "info", "log level")
 	flag.Parse()
 
@@ -63,6 +66,9 @@ func Parse() (*Config, error) {
 	}
 	if cfg.DSN == "" {
 		cfg.DSN = flagDSN
+	}
+	if cfg.EnableHTTPS == "" {
+		cfg.EnableHTTPS = flagEnableHTTPS
 	}
 
 	cfg.LogLevel, err = zapcore.ParseLevel(flagLogLevel)

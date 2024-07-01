@@ -50,6 +50,9 @@ func New(c Config) *Server {
 func (s *Server) Run() error {
 	go s.Workers()
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
+	if s.cfg.EnableHTTPS != "" {
+		return http.ListenAndServeTLS(s.cfg.SrvAdr, "cert.pem", "key.pem", SrvRouter(s))
+	}
 	return http.ListenAndServe(s.cfg.SrvAdr, SrvRouter(s))
 }
 
