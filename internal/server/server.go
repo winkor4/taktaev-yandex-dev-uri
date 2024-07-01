@@ -54,7 +54,7 @@ func (s *Server) Run() error {
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	s.Workers(sigs)
+	go s.Workers(sigs)
 
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
 	if s.cfg.EnableHTTPS {
