@@ -21,6 +21,7 @@ type Config struct {
 	LogLevel        zapcore.Level
 }
 
+// JSConfig формат для чтения файла с конфигурацией
 type JSConfig struct {
 	SrvAdr          string `json:"server_address"`
 	ResSrvAdr       string `json:"base_url"`
