@@ -92,11 +92,14 @@ func Parse() (*Config, error) {
 		return nil, err
 	}
 
-	readJSConfig(cfg)
+	if cfg.Config != "" {
+		readJSConfig(cfg)
+	}
 
 	return cfg, nil
 }
 
+// readJSConfig парсит файл конфигурации в формате json, если он есть
 func readJSConfig(cfg *Config) {
 
 	fname := cfg.Config
