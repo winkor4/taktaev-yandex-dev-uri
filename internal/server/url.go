@@ -230,17 +230,21 @@ func putDelURL(s *Server, data delURL) {
 //
 // При получении сигнала от os завершается
 func delWorker(s *Server, sigs chan os.Signal) {
-	var shutdown bool
+	// var shutdown bool
 
-	for !shutdown {
-		select {
-		case data := <-s.deleteCh:
-			s.urlRepo.DeleteURL(data.user, data.keys)
-		case <-sigs:
-			close(s.deleteCh)
-			shutdown = true
-		default:
-		}
+	// for !shutdown {
+	// 	select {
+	// 	case data := <-s.deleteCh:
+	// 		s.urlRepo.DeleteURL(data.user, data.keys)
+	// 	case <-sigs:
+	// 		close(s.deleteCh)
+	// 		shutdown = true
+	// 	default:
+	// 	}
+	// }
+
+	for data := range s.deleteCh {
+		s.urlRepo.DeleteURL(data.user, data.keys)
 	}
 
 }
