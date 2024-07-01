@@ -4,10 +4,7 @@ package server
 import (
 	"net/http"
 	"net/http/pprof"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
@@ -51,11 +48,7 @@ func New(c Config) *Server {
 
 // Run запускает сервер.
 func (s *Server) Run() error {
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	s.Workers(sigs)
-
+	go s.Workers()
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
 	if s.cfg.EnableHTTPS {
 		return http.ListenAndServeTLS(s.cfg.SrvAdr, "cert.pem", "key.pem", SrvRouter(s))
@@ -64,8 +57,8 @@ func (s *Server) Run() error {
 }
 
 // Workers запускает фоновые обработчики.
-func (s *Server) Workers(sigs chan os.Signal) {
-	go delWorker(s, sigs)
+func (s *Server) Workers() {
+	go delWorker(s)
 }
 
 // SrvRouter возвращает описание (handler) сервера для запуска
