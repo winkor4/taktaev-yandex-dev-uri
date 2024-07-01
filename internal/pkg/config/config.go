@@ -2,7 +2,9 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
+	"os"
 
 	"github.com/caarlos0/env/v6"
 	"go.uber.org/zap/zapcore"
@@ -14,8 +16,17 @@ type Config struct {
 	ResSrvAdr       string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DSN             string `env:"DATABASE_DSN"`
-	EnableHTTPS     string `env:"ENABLE_HTTPS"`
+	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
+	Config          string `env:"CONFIG"`
 	LogLevel        zapcore.Level
+}
+
+type JSConfig struct {
+	SrvAdr          string `json:"server_address"`
+	ResSrvAdr       string `json:"base_url"`
+	FileStoragePath string `json:"file_storage_path"`
+	DSN             string `json:"database_dsn"`
+	EnableHTTPS     bool   `json:"enable_https"`
 }
 
 var (
@@ -24,6 +35,7 @@ var (
 	flagFileStoragePath string
 	flagDSN             string
 	flagEnableHTTPS     string
+	flagConfig          string
 	flagLogLevel        string
 )
 
@@ -46,6 +58,7 @@ func Parse() (*Config, error) {
 	stringVar(&flagFileStoragePath, "f", "", "file storage path")
 	stringVar(&flagDSN, "d", "", "PostgresSQL path")
 	stringVar(&flagEnableHTTPS, "s", "", "возможность включения HTTPS в веб-сервере")
+	stringVar(&flagConfig, "c", "", "config from json")
 	stringVar(&flagLogLevel, "l", "info", "log level")
 	flag.Parse()
 
@@ -67,8 +80,11 @@ func Parse() (*Config, error) {
 	if cfg.DSN == "" {
 		cfg.DSN = flagDSN
 	}
-	if cfg.EnableHTTPS == "" {
-		cfg.EnableHTTPS = flagEnableHTTPS
+	if !cfg.EnableHTTPS {
+		cfg.EnableHTTPS = flagEnableHTTPS == "true"
+	}
+	if cfg.Config == "" {
+		cfg.Config = flagConfig
 	}
 
 	cfg.LogLevel, err = zapcore.ParseLevel(flagLogLevel)
@@ -76,5 +92,38 @@ func Parse() (*Config, error) {
 		return nil, err
 	}
 
+	readJSConfig(cfg)
+
 	return cfg, nil
+}
+
+func readJSConfig(cfg *Config) {
+
+	fname := cfg.Config
+	strData, err := os.ReadFile(fname)
+	if err != nil {
+		return
+	}
+
+	fcfg := new(JSConfig)
+	if err := json.Unmarshal(strData, fcfg); err != nil {
+		return
+	}
+
+	if cfg.SrvAdr == "" {
+		cfg.SrvAdr = fcfg.SrvAdr
+	}
+	if cfg.ResSrvAdr == "" {
+		cfg.ResSrvAdr = fcfg.ResSrvAdr
+	}
+	if cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = fcfg.FileStoragePath
+	}
+	if cfg.DSN == "" {
+		cfg.DSN = fcfg.DSN
+	}
+	if !cfg.EnableHTTPS {
+		cfg.EnableHTTPS = fcfg.EnableHTTPS
+	}
+
 }
