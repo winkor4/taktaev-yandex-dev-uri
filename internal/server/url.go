@@ -226,15 +226,19 @@ func putDelURL(s *Server, data delURL) {
 	s.deleteCh <- data
 }
 
+// delWorker фоновый обработчик удаления
+//
+// При получении сигнала от os завершается
 func delWorker(s *Server, sigs chan os.Signal) {
 	var shutdown bool
 
 	for !shutdown {
 		select {
-		case <-sigs:
-			shutdown = true
 		case data := <-s.deleteCh:
 			s.urlRepo.DeleteURL(data.user, data.keys)
+		case <-sigs:
+			close(s.deleteCh)
+			shutdown = true
 		default:
 		}
 	}
