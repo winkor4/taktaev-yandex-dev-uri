@@ -7,6 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/adapter/psql"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
@@ -59,7 +62,11 @@ func newTestServer() (*httptest.Server, error) {
 		Logger:  logger,
 	})
 
-	srv.Workers()
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	srv.Workers(sigs)
+
 	return httptest.NewServer(SrvRouter(srv)), nil
 }
 

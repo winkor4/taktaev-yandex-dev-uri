@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -83,7 +85,11 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 		Logger:  logger,
 	})
 
-	srv.Workers()
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	srv.Workers(sigs)
+
 	return httptest.NewServer(server.SrvRouter(srv))
 }
 
