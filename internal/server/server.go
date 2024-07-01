@@ -4,7 +4,10 @@ package server
 import (
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
@@ -49,21 +52,14 @@ func New(c Config) *Server {
 // Run запускает сервер.
 func (s *Server) Run() error {
 	var err error
-	// idleConnsClosed := make(chan struct{})
-	// sigint := make(chan os.Signal, 1)
-	// signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
-	// go func() {
-	// 	// читаем из канала прерываний
-	// 	// поскольку нужно прочитать только одно прерывание,
-	// 	// можно обойтись без цикла
-	// 	<-sigint
-	// 	// получили сигнал os.Interrupt, запускаем процедуру graceful shutdown
-	// 	s.shutdown()
-	// 	// сообщаем основному потоку,
-	// 	// что все сетевые соединения обработаны и закрыты
-	// 	close(idleConnsClosed)
-	// }()
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	go func() {
+		<-sigint
+		s.shutdown()
+	}()
 
 	s.Workers()
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
@@ -72,7 +68,6 @@ func (s *Server) Run() error {
 	} else {
 		err = http.ListenAndServe(s.cfg.SrvAdr, SrvRouter(s))
 	}
-	// <-idleConnsClosed
 
 	return err
 }
