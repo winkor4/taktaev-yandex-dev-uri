@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/adapter/psql"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
@@ -59,7 +60,10 @@ func newTestServer() (*httptest.Server, error) {
 		Logger:  logger,
 	})
 
-	srv.Workers()
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	srv.Workers(&wg)
 
 	return httptest.NewServer(SrvRouter(srv)), nil
 }

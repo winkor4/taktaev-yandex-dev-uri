@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 
@@ -225,8 +226,9 @@ func putDelURL(s *Server, data delURL) {
 	s.deleteCh <- data
 }
 
-func delWorker(s *Server) {
+func delWorker(s *Server, wg *sync.WaitGroup) {
 	for data := range s.deleteCh {
 		s.urlRepo.DeleteURL(data.user, data.keys)
 	}
+	wg.Done()
 }

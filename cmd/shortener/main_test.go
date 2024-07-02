@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -83,7 +84,10 @@ func newTestServer(t *testing.T, dbName string) *httptest.Server {
 		Logger:  logger,
 	})
 
-	srv.Workers()
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	srv.Workers(&wg)
 
 	return httptest.NewServer(server.SrvRouter(srv))
 }

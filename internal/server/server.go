@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/google/uuid"
@@ -52,6 +53,8 @@ func New(c Config) *Server {
 // Run запускает сервер.
 func (s *Server) Run() error {
 	var err error
+	var wg sync.WaitGroup
+	wg.Add(1)
 
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -59,10 +62,12 @@ func (s *Server) Run() error {
 	go func() {
 		sg := <-sigint
 		println(sg)
+		s.shutdown()
+		wg.Wait()
 		os.Exit(0)
 	}()
 
-	s.Workers()
+	s.Workers(&wg)
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
 	if s.cfg.EnableHTTPS {
 		err = http.ListenAndServeTLS(s.cfg.SrvAdr, "cert.pem", "key.pem", SrvRouter(s))
@@ -74,8 +79,8 @@ func (s *Server) Run() error {
 }
 
 // Workers запускает фоновые обработчики.
-func (s *Server) Workers() {
-	go delWorker(s)
+func (s *Server) Workers(wg *sync.WaitGroup) {
+	go delWorker(s, wg)
 }
 
 // SrvRouter возвращает описание (handler) сервера для запуска
