@@ -59,7 +59,7 @@ func (s *Server) Run() error {
 	go func() {
 		sg := <-sigint
 		println(sg)
-		os.Exit(1)
+		os.Exit(0)
 	}()
 
 	s.Workers()
