@@ -4,7 +4,10 @@ package server
 import (
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
@@ -50,13 +53,14 @@ func New(c Config) *Server {
 func (s *Server) Run() error {
 	var err error
 
-	// sigint := make(chan os.Signal, 1)
-	// signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
-	// go func() {
-	// 	<-sigint
-	// 	s.shutdown()
-	// }()
+	go func() {
+		sg := <-sigint
+		println(sg)
+		os.Exit(1)
+	}()
 
 	s.Workers()
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
