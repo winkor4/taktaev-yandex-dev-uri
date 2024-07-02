@@ -53,6 +53,7 @@ func New(c Config) *Server {
 // Run запускает сервер.
 func (s *Server) Run() error {
 	var err error
+	// Добавил sync.WaitGroup чтобы быть уверенным, что очередь с удалением будет очищена
 	var wg sync.WaitGroup
 	wg.Add(1)
 
