@@ -56,10 +56,10 @@ func (s *Server) Run() error {
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
-	go func() {
-		<-sigint
-		s.shutdown()
-	}()
+	// go func() {
+	// 	<-sigint
+	// 	s.shutdown()
+	// }()
 
 	s.Workers()
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
