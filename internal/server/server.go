@@ -105,6 +105,7 @@ func SrvRouter(s *Server) *chi.Mux {
 
 func apiRouter(s *Server) *chi.Mux {
 	r := chi.NewRouter()
+	r.Get("/internal/stats", getStats(s))
 	r.Mount("/shorten", apiShortenRouter(s))
 	r.Mount("/user", apiUserRouter(s))
 	return r

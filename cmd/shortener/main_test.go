@@ -43,6 +43,7 @@ func TestApp(t *testing.T) {
 		testAPI(t, srv, dbName)
 		testAPIBatch(t, srv, dbName)
 		testAPIDelete(t, srv, dbName)
+
 		srv.Close()
 	}
 }
@@ -50,6 +51,9 @@ func TestApp(t *testing.T) {
 func newTestServer(t *testing.T, dbName string) *httptest.Server {
 	cfg, err := config.Parse()
 	require.NoError(t, err)
+
+	// тестовая подсеть
+	cfg.TrustedSubnet = "127.0.0.1/24"
 
 	var repo storage.Repository
 
@@ -343,6 +347,28 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 				body:         []byte(""),
 			},
 		},
+		{
+			name:              dbName + " Выполнить Get запрос /api/internal/stats",
+			id:                "get /api/internal/stats",
+			postID:            "",
+			method:            http.MethodGet,
+			path:              "/api/internal/stats",
+			contentType:       "",
+			body:              []byte(""),
+			originalURL:       "",
+			withAuthorization: true,
+			checkRedirect:     false,
+			checkContentType:  false,
+			checkBody:         false,
+			want: want{
+				contentType:  "",
+				statusCode:   http.StatusOK,
+				originalURL:  "",
+				key:          "",
+				shortenedURL: "",
+				body:         []byte(""),
+			},
+		},
 	}
 
 	var user string
@@ -358,6 +384,14 @@ func testAPI(t *testing.T, srv *httptest.Server, dbName string) {
 			request, err := http.NewRequest(testData.method, srv.URL+testData.path, body)
 			require.NoError(t, err)
 			request.Header.Set("Content-Type", testData.contentType)
+
+			if testData.id == "get /api/internal/stats" {
+				// ipStr, _, err := net.SplitHostPort(request.Host)
+				// require.NoError(t, err)
+				// тестовый ip
+				ipStr := "127.0.0.1"
+				request.Header.Set("X-Real-IP", ipStr)
+			}
 
 			client := srv.Client()
 			if testData.checkRedirect {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -226,9 +227,42 @@ func putDelURL(s *Server, data delURL) {
 	s.deleteCh <- data
 }
 
+func getStats(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		// Проверяем конфиг
+		if s.cfg.TrustedSubnet == "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		// Читаем ip из заголовка
+		ipStr := r.Header.Get("X-Real-IP")
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Парсим подсеть для проверки ip
+		_, network, err := net.ParseCIDR(s.cfg.TrustedSubnet)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		// Если ip не входит в подсеть, то возврат
+		ok := network.Contains(ip)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+	}
+}
+
 func delWorker(s *Server, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for data := range s.deleteCh {
 		s.urlRepo.DeleteURL(data.user, data.keys)
 	}
-	wg.Done()
 }

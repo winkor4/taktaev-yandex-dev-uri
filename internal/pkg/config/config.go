@@ -18,6 +18,7 @@ type Config struct {
 	DSN             string `env:"DATABASE_DSN"`
 	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
 	Config          string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
 	LogLevel        zapcore.Level
 }
 
@@ -28,6 +29,7 @@ type JSConfig struct {
 	FileStoragePath string `json:"file_storage_path"`
 	DSN             string `json:"database_dsn"`
 	EnableHTTPS     bool   `json:"enable_https"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 }
 
 var (
@@ -37,6 +39,7 @@ var (
 	flagDSN             string
 	flagEnableHTTPS     string
 	flagConfig          string
+	flagTrustedSubnet   string
 	flagLogLevel        string
 )
 
@@ -60,6 +63,7 @@ func Parse() (*Config, error) {
 	stringVar(&flagDSN, "d", "", "PostgresSQL path")
 	stringVar(&flagEnableHTTPS, "s", "", "возможность включения HTTPS в веб-сервере")
 	stringVar(&flagConfig, "c", "", "config from json")
+	stringVar(&flagTrustedSubnet, "t", "", "CIDR")
 	stringVar(&flagLogLevel, "l", "info", "log level")
 	flag.Parse()
 
@@ -83,6 +87,9 @@ func Parse() (*Config, error) {
 	}
 	if !cfg.EnableHTTPS {
 		cfg.EnableHTTPS = flagEnableHTTPS == "true"
+	}
+	if cfg.TrustedSubnet == "" {
+		cfg.TrustedSubnet = flagTrustedSubnet
 	}
 	if cfg.Config == "" {
 		cfg.Config = flagConfig
@@ -125,6 +132,9 @@ func readJSConfig(cfg *Config) {
 	}
 	if cfg.DSN == "" {
 		cfg.DSN = fcfg.DSN
+	}
+	if cfg.TrustedSubnet == "" {
+		cfg.TrustedSubnet = fcfg.TrustedSubnet
 	}
 	if !cfg.EnableHTTPS {
 		cfg.EnableHTTPS = fcfg.EnableHTTPS
