@@ -2,6 +2,7 @@
 package server
 
 import (
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -14,9 +15,22 @@ import (
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/log"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/pkg/config"
+	"google.golang.org/grpc"
+
+	// импортируем пакет со сгенерированными protobuf-файлами
+	pb "github.com/winkor4/taktaev-yandex-dev-uri.git/proto"
 
 	"github.com/go-chi/chi/v5"
 )
+
+// ServerGRPC поддерживает все необходимые методы gRPC сервера.
+type ServerGRPC struct {
+	pb.UnimplementedURLShortenerServer
+	cfg      *config.Config
+	user     string
+	deleteCh chan delURL
+	urlRepo  model.URLRepository
+}
 
 // Config хранит параметры для создания нового сервера.
 type Config struct {
@@ -68,6 +82,8 @@ func (s *Server) Run() error {
 		os.Exit(0)
 	}()
 
+	go runGRPC(s)
+
 	s.Workers(&wg)
 	s.logger.Logw(s.cfg.LogLevel, "Starting server", "SrvAdr", s.cfg.SrvAdr)
 	if s.cfg.EnableHTTPS {
@@ -77,6 +93,29 @@ func (s *Server) Run() error {
 	}
 
 	return err
+}
+
+func runGRPC(s *Server) {
+	// определяем порт для сервера
+	listen, err := net.Listen("tcp", ":3200")
+	if err != nil {
+		return
+	}
+
+	serverGRPC := new(ServerGRPC)
+	serverGRPC.cfg = s.cfg
+	serverGRPC.deleteCh = s.deleteCh
+	serverGRPC.urlRepo = s.urlRepo
+
+	// создаём gRPC-сервер без зарегистрированной службы
+	server := grpc.NewServer(grpc.UnaryInterceptor(serverGRPC.authorizationInterceptor))
+	// регистрируем сервис
+	pb.RegisterURLShortenerServer(server, serverGRPC)
+	s.logger.Logw(s.cfg.LogLevel, "Сервер gRPC начал работу")
+	// получаем запрос gRPC
+	if err := server.Serve(listen); err != nil {
+		return
+	}
 }
 
 // Workers запускает фоновые обработчики.

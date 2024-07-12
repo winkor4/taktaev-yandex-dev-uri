@@ -217,14 +217,14 @@ func deleteURL(s *Server) http.HandlerFunc {
 		var data delURL
 		data.user = user
 		data.keys = keys
-		go putDelURL(s, data)
+		go putDelURL(s.deleteCh, data)
 
 		w.WriteHeader(http.StatusAccepted)
 	}
 }
 
-func putDelURL(s *Server, data delURL) {
-	s.deleteCh <- data
+func putDelURL(deleteCh chan delURL, data delURL) {
+	deleteCh <- data
 }
 
 func getStats(s *Server) http.HandlerFunc {

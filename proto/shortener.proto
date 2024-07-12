@@ -17,6 +17,35 @@ message ShortURLResponse {
   string shorten_url = 2;
 }
 
+message GetURLRequest {
+  string id = 1;
+}
+
+message GetURLResponse {
+  string url = 1;
+}
+
+message ShortBatchRequest {
+  User user = 1;
+  repeated string urls = 2;
+}
+
+message ShortBatchResponse {
+  repeated string shorten_urls = 1;
+}
+
+message DeleteURLRequest {
+  User user = 1;
+  repeated string keys = 2;
+}
+
+message DeleteURLResponse {
+  string error = 1;
+}
+
 service URLShortener {
   rpc ShortURL(ShortURLRequest) returns (ShortURLResponse);
+  rpc GetURL(GetURLRequest) returns (GetURLResponse);
+  rpc ShortBatch(ShortBatchRequest) returns (ShortBatchResponse);
+  rpc DeleteURL(DeleteURLRequest) returns (DeleteURLResponse);
 }
