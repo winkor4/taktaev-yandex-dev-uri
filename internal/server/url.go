@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/winkor4/taktaev-yandex-dev-uri.git/internal/model"
 
@@ -215,17 +217,51 @@ func deleteURL(s *Server) http.HandlerFunc {
 		var data delURL
 		data.user = user
 		data.keys = keys
-		go putDelURL(s, data)
+		go putDelURL(s.deleteCh, data)
 
 		w.WriteHeader(http.StatusAccepted)
 	}
 }
 
-func putDelURL(s *Server, data delURL) {
-	s.deleteCh <- data
+func putDelURL(deleteCh chan delURL, data delURL) {
+	deleteCh <- data
 }
 
-func delWorker(s *Server) {
+func getStats(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		// Проверяем конфиг
+		if s.cfg.TrustedSubnet == "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		// Читаем ip из заголовка
+		ipStr := r.Header.Get("X-Real-IP")
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Парсим подсеть для проверки ip
+		_, network, err := net.ParseCIDR(s.cfg.TrustedSubnet)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		// Если ip не входит в подсеть, то возврат
+		ok := network.Contains(ip)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+	}
+}
+
+func delWorker(s *Server, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for data := range s.deleteCh {
 		s.urlRepo.DeleteURL(data.user, data.keys)
 	}
